@@ -11,5 +11,9 @@
     "max_images": 250,
     "output_file": "config/camera_calibration.json"
   },
-  "display": true
+  "display": true,
+  "record": {
+    "enabled": true,
+    "fps": 30.0
+  }
 }

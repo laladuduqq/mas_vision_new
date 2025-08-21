@@ -14,13 +14,16 @@
 #include "pubsub.hpp"
 #include "performance_monitor.hpp"
 #include "ulog.hpp"
-
+#include "recorder.hpp"
 
 extern std::atomic<bool> running;
 extern mas_utils::PerformanceMonitor perfMonitor;
 
 static bool displayEnabled = false;
 static std::atomic<bool> camera_thread_running(false);
+static bool recordEnabled = false;
+static double recordFps = 30.0;
+static std::unique_ptr<rm_utils::Recorder> recorder = nullptr;
 
 // 相机线程函数
 void cameraThreadFunc() {
@@ -33,6 +36,14 @@ void cameraThreadFunc() {
         cv::FileStorage fs("config/camera_set.json", cv::FileStorage::READ);
         if (fs.isOpened()) {
             fs["display"] >> displayEnabled;
+            
+            // 读取录制配置
+            cv::FileNode recordNode = fs["record"];
+            if (!recordNode.empty()) {
+                recordNode["enabled"] >> recordEnabled;
+                recordNode["fps"] >> recordFps;
+            }
+            
             fs.release();
         }
     } catch (const cv::Exception& e) {
@@ -48,6 +59,12 @@ void cameraThreadFunc() {
     
     ULOG_INFO_TAG("Camera","Camera initialized successfully");
 
+    // 如果启用了录制，创建Recorder实例
+    if (recordEnabled) {
+        recorder = std::make_unique<rm_utils::Recorder>(recordFps);
+        ULOG_INFO_TAG("Camera", "Recorder initialized with FPS: %f", recordFps);
+    }
+
     // 创建图像发布者
     Publisher<cv::Mat> imagePublisher("camera/image");
     
@@ -57,6 +74,11 @@ void cameraThreadFunc() {
         if (cam.grabImage(frame)) {
             // 发布图像消息到PubSub系统
             imagePublisher.publish(frame);
+            
+            // 如果启用了录制，进行录制
+            if (recordEnabled && recorder) {
+                recorder->record(frame);
+            }
             
             if (displayEnabled)
             {
@@ -69,6 +91,9 @@ void cameraThreadFunc() {
         } 
     }
 
+    // 重置recorder指针，确保正确析构
+    recorder.reset();
+    
     cam.closeCamera();
     if (displayEnabled)
     {

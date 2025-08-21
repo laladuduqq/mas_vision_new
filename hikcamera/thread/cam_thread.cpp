@@ -2,7 +2,7 @@
  * @Author: laladuduqq 2807523947@qq.com
  * @Date: 2025-07-28 18:10:53
  * @LastEditors: laladuduqq 2807523947@qq.com
- * @LastEditTime: 2025-08-21 20:52:17
+ * @LastEditTime: 2025-08-21 21:46:44
  * @FilePath: /mas_vision_new/hikcamera/thread/cam_thread.cpp
  * @Description:
  */
@@ -66,14 +66,17 @@ void cameraThreadFunc() {
     }
 
     // 创建图像发布者
-    Publisher<cv::Mat> imagePublisher("camera/image");
+    Publisher<CameraFrame> imagePublisher("camera/image");
     
     while (running.load() && camera_thread_running.load()) {
         cv::Mat frame;
         // 获取帧
         if (cam.grabImage(frame)) {
+            auto timestamp = std::chrono::steady_clock::now();
+            // 创建带时间戳的帧
+            CameraFrame timeCameraFrame{frame, timestamp};
             // 发布图像消息到PubSub系统
-            imagePublisher.publish(frame);
+            imagePublisher.publish(timeCameraFrame);
             
             // 如果启用了录制，进行录制
             if (recordEnabled && recorder) {
@@ -93,7 +96,6 @@ void cameraThreadFunc() {
 
     // 重置recorder指针，确保正确析构
     recorder.reset();
-    
     cam.closeCamera();
     if (displayEnabled)
     {

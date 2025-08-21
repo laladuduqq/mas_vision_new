@@ -2,7 +2,7 @@
  * @Author: laladuduqq 2807523947@qq.com
  * @Date: 2025-08-21 20:04:13
  * @LastEditors: laladuduqq 2807523947@qq.com
- * @LastEditTime: 2025-08-21 20:18:07
+ * @LastEditTime: 2025-08-21 21:58:17
  * @FilePath: /mas_vision_new/rm_utils/ulog/ulog.hpp
  * @Description: 
  */
@@ -95,6 +95,7 @@ typedef enum {
 
 #ifdef ULOG_ENABLED
   #define ULOG_INIT() ulog_init()
+  #define ULOG_DEINIT() ulog_deinit()
   #define ULOG_INIT_CONSOLE_AND_FILE(console_level, file_level) ulog_init_console_and_file(console_level, file_level)
   #define ULOG_SUBSCRIBE(a, b) ulog_subscribe(a, b)
   #define ULOG_UNSUBSCRIBE(a) ulog_unsubscribe(a)
@@ -120,6 +121,7 @@ typedef enum {
 #else
   // uLog vanishes when disabled at compile time...
   #define ULOG_INIT() do {} while(0)
+  #define ULOG_DEINIT() do {} while(0)
   #define ULOG_INIT_CONSOLE_AND_FILE(console_level, file_level) do {} while(0)
   #define ULOG_SUBSCRIBE(a, b) do {} while(0)
   #define ULOG_UNSUBSCRIBE(a) do {} while(0)
@@ -177,6 +179,7 @@ typedef enum {
 typedef void (*ulog_function_t)(ulog_level_t severity, const char *msg);
 
 void ulog_init(void);
+void ulog_deinit(void);
 void ulog_init_console_and_file(ulog_level_t console_level, ulog_level_t file_level);
 ulog_err_t ulog_subscribe(ulog_function_t fn, ulog_level_t threshold);
 ulog_err_t ulog_unsubscribe(ulog_function_t fn);

@@ -2,8 +2,8 @@
  * @Author: laladuduqq 2807523947@qq.com
  * @Date: 2025-07-27 17:37:26
  * @LastEditors: laladuduqq 2807523947@qq.com
- * @LastEditTime: 2025-08-17 20:05:25
- * @FilePath: /mas_vision/hikcamera/include/HikCamera.h
+ * @LastEditTime: 2025-08-21 21:29:18
+ * @FilePath: /mas_vision_new/hikcamera/include/HikCamera.h
  * @Description: 
  */
 #ifndef HIKCAMERA_H
@@ -14,6 +14,11 @@
 #include "MvCameraControl.h"
 #include <opencv2/opencv.hpp>
 
+struct CameraFrame {
+    cv::Mat frame;
+    std::chrono::steady_clock::time_point timestamp;
+};
+
 namespace hikcamera {
     class HikCamera {
     public:
@@ -23,17 +28,6 @@ namespace hikcamera {
         bool openCamera();
         void closeCamera();
         bool grabImage(cv::Mat& outImg);
-
-        // 相机校准相关函数
-        bool calibrateCamera(const std::vector<std::vector<cv::Point3f>>& objectPoints,
-                            const std::vector<std::vector<cv::Point2f>>& imagePoints,
-                            const cv::Size& imageSize,
-                            cv::Mat& cameraMatrix,
-                            cv::Mat& distCoeffs);
-        bool saveCalibration(const std::string& filename,
-                            const cv::Mat& cameraMatrix,
-                            const cv::Mat& distCoeffs,
-                            const cv::Size& imageSize);
 
     private:
         void* handle;           // Camera handle

@@ -80,6 +80,12 @@ void ulog_console_logger(ulog_level_t level, const char *msg) {
 // user-visible code
 
 void ulog_init(void) {
+  // 如果已经有打开的日志文件，先关闭它
+  if (s_log_file) {
+    fclose(s_log_file);
+    s_log_file = NULL;
+  }
+  
   memset(s_subscribers, 0, sizeof(s_subscribers));
   s_lowest_log_level = ulog_lowest_log_level();
   
@@ -104,7 +110,10 @@ void ulog_init(void) {
 void ulog_init_console_and_file(ulog_level_t console_level, ulog_level_t file_level) {
   ulog_init();
   ulog_subscribe(ulog_console_logger, console_level);
-  // File logging is already handled in ulog_message and ulog_message_tag
+  // 确保最低日志级别能够允许文件记录所需的级别
+  if (file_level < s_lowest_log_level) {
+    s_lowest_log_level = file_level;
+  }
 }
 
 // search the s_subscribers table to install or update fn
@@ -240,6 +249,13 @@ void ulog_message_tag(const char *tag, ulog_level_t severity, const char *fmt, .
       }
     }
   }
+}
+
+void ulog_deinit(void) {
+    if (s_log_file) {
+        fclose(s_log_file);
+        s_log_file = NULL;
+    }
 }
 
 // =============================================================================

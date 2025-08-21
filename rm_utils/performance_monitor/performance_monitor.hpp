@@ -2,8 +2,8 @@
  * @Author: laladuduqq 2807523947@qq.com
  * @Date: 2025-08-17 20:25:26
  * @LastEditors: laladuduqq 2807523947@qq.com
- * @LastEditTime: 2025-08-17 20:25:52
- * @FilePath: /mas_vision/rm_utils/performance_monitor/performance_monitior.hpp
+ * @LastEditTime: 2025-08-21 22:25:05
+ * @FilePath: /mas_vision_new/rm_utils/performance_monitor/performance_monitor.hpp
  * @Description: 
  */
 #ifndef PERFORMANCE_MONITOR_H
@@ -27,8 +27,7 @@ struct ThreadInfo {
     std::string name;
     int threadId;
     float cpuUsage;
-    float memoryUsage; // 内存使用率（MB）
-    ThreadInfo(const std::string& n, int tid = 0) : name(n), threadId(tid), cpuUsage(0.0f), memoryUsage(0.0f) {}
+    ThreadInfo(const std::string& n, int tid = 0) : name(n), threadId(tid), cpuUsage(0.0f) {}
 };
 
 struct CoreInfo {

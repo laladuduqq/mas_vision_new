@@ -6,6 +6,7 @@
 #include <numeric>
 #include <algorithm>
 #include <sys/syscall.h>
+#include "ulog.hpp"
 
 #ifdef __linux__
 #include <unistd.h>
@@ -22,9 +23,11 @@ mas_utils::PerformanceMonitor::PerformanceMonitor()
     , processMemory_(0.0f)
     , perfFrame_(600, 800, CV_8UC3, cv::Scalar(0, 0, 0))
     , showWindow_(true) {
+    ULOG_DEBUG_TAG("PerformanceMonitor", "PerformanceMonitor created");
 }
 
 mas_utils::PerformanceMonitor::~PerformanceMonitor() {
+    ULOG_DEBUG_TAG("PerformanceMonitor", "PerformanceMonitor destroyed");
     stopMonitoring();
 }
 
@@ -32,38 +35,52 @@ void mas_utils::PerformanceMonitor::startMonitoring() {
     if (!monitoring_) {
         monitoring_ = true;
         monitorThread_ = std::thread(&PerformanceMonitor::monitorLoop, this);
+        ULOG_INFO_TAG("PerformanceMonitor", "Performance monitoring started");
+    } else {
+        ULOG_WARNING_TAG("PerformanceMonitor", "Performance monitoring already running");
     }
 }
 
 void mas_utils::PerformanceMonitor::stopMonitoring() {
     if (monitoring_) {
+        ULOG_INFO_TAG("PerformanceMonitor", "Stopping performance monitoring");
         monitoring_ = false;
         if (monitorThread_.joinable()) {
             monitorThread_.join();
+            ULOG_DEBUG_TAG("PerformanceMonitor", "Performance monitoring thread joined");
         }
+    } else {
+        ULOG_WARNING_TAG("PerformanceMonitor", "Performance monitoring not running");
     }
 }
 
 void mas_utils::PerformanceMonitor::addThread(const std::string& threadName, int threadId) {
     std::lock_guard<std::mutex> lock(threadsMutex_);
     threads_.emplace_back(threadName, threadId);
+    ULOG_DEBUG_TAG("PerformanceMonitor", "Added thread to monitor: %s (ID: %d)", threadName.c_str(), threadId);
 }
 
 long mas_utils::PerformanceMonitor::getThreadsId() { 
-    return syscall(SYS_gettid);
+    long tid = syscall(SYS_gettid);
+    ULOG_DEBUG_TAG("PerformanceMonitor", "Getting thread ID: %ld", tid);
+    return tid;
 }
 
 void mas_utils::PerformanceMonitor::showPerformanceWindow() {
     if (showWindow_) {
         cv::imshow("Performance Monitor", perfFrame_);
         // 如果按下ESC键，关闭窗口
-        if (cv::waitKey(1) == 27) {
+        int key = cv::waitKey(1);
+        if (key == 27) {
+            ULOG_INFO_TAG("PerformanceMonitor", "Performance window closed by user (ESC key)");
             showWindow_ = false;
             cv::destroyWindow("Performance Monitor");
         }
     } else {
         // 如果窗口被关闭，按任意键重新打开
-        if (cv::waitKey(1) != -1) {
+        int key = cv::waitKey(1);
+        if (key != -1) {
+            ULOG_INFO_TAG("PerformanceMonitor", "Performance window reopened by user");
             showWindow_ = true;
             cv::namedWindow("Performance Monitor");
         }
@@ -71,6 +88,7 @@ void mas_utils::PerformanceMonitor::showPerformanceWindow() {
 }
 
 void mas_utils::PerformanceMonitor::monitorLoop() {
+    ULOG_INFO_TAG("PerformanceMonitor", "Performance monitor loop started");
     while (monitoring_) {
 #ifdef __linux__
         updateSystemUsage();
@@ -81,6 +99,7 @@ void mas_utils::PerformanceMonitor::monitorLoop() {
         // 每200毫秒更新一次
         std::this_thread::sleep_for(std::chrono::milliseconds(200));
     }
+    ULOG_INFO_TAG("PerformanceMonitor", "Performance monitor loop stopped");
 }
 
 #ifdef __linux__
@@ -94,6 +113,8 @@ std::vector<std::string> mas_utils::PerformanceMonitor::readLinesFromFile(const 
             lines.push_back(line);
         }
         file.close();
+    } else {
+        ULOG_WARNING_TAG("PerformanceMonitor", "Failed to open file: %s", filename.c_str());
     }
     
     return lines;
@@ -183,6 +204,9 @@ void mas_utils::PerformanceMonitor::updateSystemUsage() {
             break;
         }
     }
+    
+    ULOG_DEBUG_TAG("PerformanceMonitor", "System usage - CPU: %.1f%%, Memory: %.1f%%, Disk: %.1f%%, Process Memory: %.1f MB", 
+                   cpuUsage_, memoryUsage_, diskUsage_, processMemory_);
 }
 
 void mas_utils::PerformanceMonitor::updateCoreUsage() {
@@ -198,6 +222,7 @@ void mas_utils::PerformanceMonitor::updateCoreUsage() {
         for (int i = 0; i < cpuCoreCount; ++i) {
             cores_.emplace_back(i);
         }
+        ULOG_DEBUG_TAG("PerformanceMonitor", "Adjusted core count to %d", cpuCoreCount);
     }
     
     // 处理每个CPU核心行（跳过第一行总CPU）
@@ -246,7 +271,10 @@ void mas_utils::PerformanceMonitor::updateThreadUsage() {
     
     // 获取当前进程的所有线程ID
     DIR* dir = opendir("/proc/self/task");
-    if (!dir) return;
+    if (!dir) {
+        ULOG_ERROR_TAG("PerformanceMonitor", "Failed to open /proc/self/task directory");
+        return;
+    }
     
     struct dirent* entry;
     std::set<int> currentThreadIds;
@@ -320,14 +348,12 @@ void mas_utils::PerformanceMonitor::updateThreadUsage() {
                     thread.cpuUsage = 0.0f;
                 }
             } catch (...) {
+                ULOG_WARNING_TAG("PerformanceMonitor", "Failed to parse stat file for thread %d", actualTid);
                 thread.cpuUsage = 0.0f;
             }
         } else {
             thread.cpuUsage = 0.0f;
         }
-        
-        // 线程内存使用情况（简化处理，平均分配进程内存）
-        thread.memoryUsage = processMemory_ / std::max(1, (int)threads_.size());
     }
 }
 #endif
@@ -356,6 +382,7 @@ void mas_utils::PerformanceMonitor::drawPerformanceChart() {
     // 如果窗口大小不够，重新创建
     if (perfFrame_.rows < totalHeight) {
         perfFrame_ = cv::Mat(totalHeight, 800, CV_8UC3, cv::Scalar(30, 30, 30));
+        ULOG_DEBUG_TAG("PerformanceMonitor", "Resized performance frame to %d x 800", totalHeight);
     } else {
         perfFrame_ = cv::Scalar(30, 30, 30); // 深灰色背景
     }
@@ -439,8 +466,7 @@ void mas_utils::PerformanceMonitor::drawPerformanceChart() {
         
         int x = 20 + col * coreSpacing;
         int y = startY + row * 30;
-        
-        // 移除了防止超出画面的检查，因为我们已经调整了窗口大小
+    
         
         cv::putText(perfFrame_, cv::format("Core %d:", cores_[i].coreId), cv::Point(x, y), 
                     cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(200, 200, 200), 1);
@@ -489,12 +515,7 @@ void mas_utils::PerformanceMonitor::drawPerformanceChart() {
             cv::putText(perfFrame_, cv::format("%.1f%%", thread.cpuUsage), 
                         cv::Point(260, startY + 5), 
                         cv::FONT_HERSHEY_SIMPLEX, 0.4, cv::Scalar(255, 255, 255), 1);
-            
-            // 绘制线程内存使用情况
-            cv::putText(perfFrame_, cv::format("%.1f MB", thread.memoryUsage), 
-                        cv::Point(320, startY + 5), 
-                        cv::FONT_HERSHEY_SIMPLEX, 0.4, cv::Scalar(100, 255, 255), 1);
-            
+
             startY += 25;
         }
     }

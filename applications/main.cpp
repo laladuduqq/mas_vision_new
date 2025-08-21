@@ -2,7 +2,7 @@
  * @Author: laladuduqq 2807523947@qq.com
  * @Date: 2025-08-17 16:17:20
  * @LastEditors: laladuduqq 2807523947@qq.com
- * @LastEditTime: 2025-08-21 21:59:41
+ * @LastEditTime: 2025-08-21 22:48:42
  * @FilePath: /mas_vision_new/applications/main.cpp
  * @Description: 
  */
@@ -68,15 +68,15 @@ int main(int argc, char* argv[])
 
     // 停止相机线程
     stopCameraThread();
-    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+
 
     // 停止PubSub消息中心
     stopPubSubThread();
-    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+
 
     // 停止性能监控
     perfMonitor.stopMonitoring();
-    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+
 
     ULOG_INFO_TAG("main","Application exiting");
 

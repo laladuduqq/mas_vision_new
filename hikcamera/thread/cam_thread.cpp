@@ -2,7 +2,7 @@
  * @Author: laladuduqq 2807523947@qq.com
  * @Date: 2025-07-28 18:10:53
  * @LastEditors: laladuduqq 2807523947@qq.com
- * @LastEditTime: 2025-08-21 21:46:44
+ * @LastEditTime: 2025-08-21 22:47:18
  * @FilePath: /mas_vision_new/hikcamera/thread/cam_thread.cpp
  * @Description:
  */
@@ -21,12 +21,14 @@ extern mas_utils::PerformanceMonitor perfMonitor;
 
 static bool displayEnabled = false;
 static std::atomic<bool> camera_thread_running(false);
+static std::atomic<bool> camera_thread_finished(true); // 标记相机线程是否已完成
 static bool recordEnabled = false;
 static double recordFps = 30.0;
 static std::unique_ptr<rm_utils::Recorder> recorder = nullptr;
 
 // 相机线程函数
 void cameraThreadFunc() {
+    camera_thread_finished = false; // 标记线程开始运行
     // 注册性能监控
     perfMonitor.addThread("CameraThread", perfMonitor.getThreadsId());
     
@@ -54,6 +56,7 @@ void cameraThreadFunc() {
     if (!cam.openCamera()) {
         ULOG_ERROR_TAG("Camera","Failed to initialize camera");
         running = false;
+        camera_thread_finished = true; // 标记线程完成
         return;
     }
     
@@ -103,7 +106,7 @@ void cameraThreadFunc() {
         cv::destroyAllWindows();
     }
     
-    ULOG_INFO_TAG("Camera","Camera thread exit");
+    camera_thread_finished = true; // 标记线程完成
 }
 
 // 启动相机线程
@@ -117,4 +120,9 @@ void startCameraThread() {
 // 停止相机线程
 void stopCameraThread() {
     camera_thread_running = false;
+    // 等待相机线程完全退出
+    while (!camera_thread_finished.load()) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }
+    ULOG_INFO_TAG("Camera", "Camera thread stopped");
 }

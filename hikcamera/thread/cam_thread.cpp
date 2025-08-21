@@ -1,0 +1,93 @@
+/*
+ * @Author: laladuduqq 2807523947@qq.com
+ * @Date: 2025-07-28 18:10:53
+ * @LastEditors: laladuduqq 2807523947@qq.com
+ * @LastEditTime: 2025-08-21 20:52:17
+ * @FilePath: /mas_vision_new/hikcamera/thread/cam_thread.cpp
+ * @Description:
+ */
+#include "HikCamera.h"
+#include <opencv2/core/mat.hpp>
+#include <opencv2/opencv.hpp>
+#include <atomic>
+#include <thread>
+#include "pubsub.hpp"
+#include "performance_monitor.hpp"
+#include "ulog.hpp"
+
+
+extern std::atomic<bool> running;
+extern mas_utils::PerformanceMonitor perfMonitor;
+
+static bool displayEnabled = false;
+static std::atomic<bool> camera_thread_running(false);
+
+// 相机线程函数
+void cameraThreadFunc() {
+    // 注册性能监控
+    perfMonitor.addThread("CameraThread", perfMonitor.getThreadsId());
+    
+    // 在相机线程内部创建相机对象
+    hikcamera::HikCamera cam;
+    try {
+        cv::FileStorage fs("config/camera_set.json", cv::FileStorage::READ);
+        if (fs.isOpened()) {
+            fs["display"] >> displayEnabled;
+            fs.release();
+        }
+    } catch (const cv::Exception& e) {
+        ULOG_ERROR_TAG("Camera", "Failed to load camera config: %s", e.what());
+    };
+    
+    // 初始化相机
+    if (!cam.openCamera()) {
+        ULOG_ERROR_TAG("Camera","Failed to initialize camera");
+        running = false;
+        return;
+    }
+    
+    ULOG_INFO_TAG("Camera","Camera initialized successfully");
+
+    // 创建图像发布者
+    Publisher<cv::Mat> imagePublisher("camera/image");
+    
+    while (running.load() && camera_thread_running.load()) {
+        cv::Mat frame;
+        // 获取帧
+        if (cam.grabImage(frame)) {
+            // 发布图像消息到PubSub系统
+            imagePublisher.publish(frame);
+            
+            if (displayEnabled)
+            {
+                // 显示图像
+                cv::Mat resizedDrawingFrame;
+                cv::resize(frame, resizedDrawingFrame, cv::Size(640, 480), 0, 0, cv::INTER_LINEAR);
+                cv::imshow("Camera", resizedDrawingFrame);
+                cv::waitKey(1);
+            }
+        } 
+    }
+
+    cam.closeCamera();
+    if (displayEnabled)
+    {
+        // 关闭所有OpenCV窗口
+        cv::destroyAllWindows();
+    }
+    
+    ULOG_INFO_TAG("Camera","Camera thread exit");
+}
+
+// 启动相机线程
+void startCameraThread() {
+    camera_thread_running = true;
+    static std::thread camera_thread(cameraThreadFunc);
+    // 分离线程，让它独立运行
+    camera_thread.detach();
+}
+
+// 停止相机线程
+void stopCameraThread() {
+    camera_thread_running = false;
+}

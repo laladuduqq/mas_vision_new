@@ -1,0 +1,15 @@
+{
+  "camera": {
+    "exposuretime": 8000.0,
+    "gain": 10.0
+  },
+  "calibration": {
+    "board_width": 7,
+    "board_height": 10,
+    "square_size": 0.0235,
+    "min_images": 10,
+    "max_images": 250,
+    "output_file": "config/camera_calibration.json"
+  },
+  "display": true
+}

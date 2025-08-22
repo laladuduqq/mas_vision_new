@@ -5,6 +5,7 @@ add_library(rm_utils STATIC
     ${CMAKE_CURRENT_SOURCE_DIR}/PubSub/thread/pubsub_thread.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ulog/ulog.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/recorder/recorder.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/video/video.cpp
 )
 
 find_package(OpenCV REQUIRED)
@@ -18,7 +19,8 @@ target_include_directories(rm_utils PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/performance_monitor
     ${CMAKE_CURRENT_SOURCE_DIR}/PubSub
     ${CMAKE_CURRENT_SOURCE_DIR}/ulog
-     ${CMAKE_CURRENT_SOURCE_DIR}/recorder
+    ${CMAKE_CURRENT_SOURCE_DIR}/recorder
+    ${CMAKE_CURRENT_SOURCE_DIR}/video
 )
 
 # 链接所需库
@@ -34,7 +36,8 @@ list(APPEND MAIN_PROJECT_INCLUDE_DIRS
     ${CMAKE_CURRENT_SOURCE_DIR}/performance_monitor
     ${CMAKE_CURRENT_SOURCE_DIR}/PubSub
     ${CMAKE_CURRENT_SOURCE_DIR}/ulog
-    ${CMAKE_CURRENT_SOURCE_DIR}/recorder)
+    ${CMAKE_CURRENT_SOURCE_DIR}/recorder
+    ${CMAKE_CURRENT_SOURCE_DIR}/video)
 
 
 set(MAIN_PROJECT_LIBRARIES ${MAIN_PROJECT_LIBRARIES} CACHE INTERNAL "Libraries for main project")

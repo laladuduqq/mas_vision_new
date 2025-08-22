@@ -12,3 +12,9 @@ display: true
 record:
   enabled: false
   fps: 30.0
+# 添加模式配置：camera 或 video
+mode: "video"
+# 视频配置（仅在mode为video时使用）
+video:
+  path: "test.mp4"
+  fps: 30.0

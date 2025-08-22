@@ -2,7 +2,7 @@
  * @Author: laladuduqq 2807523947@qq.com
  * @Date: 2025-08-17 16:17:20
  * @LastEditors: laladuduqq 2807523947@qq.com
- * @LastEditTime: 2025-08-21 22:48:42
+ * @LastEditTime: 2025-08-22 13:15:23
  * @FilePath: /mas_vision_new/applications/main.cpp
  * @Description: 
  */
@@ -25,6 +25,9 @@ void stopCameraThread();
 // pubsub
 void startPubSubThread();
 void stopPubSubThread();
+// serial
+void startSerialThread();
+void stopSerialThread();
 
 // 性能监控器实例
 mas_utils::PerformanceMonitor perfMonitor;
@@ -55,6 +58,9 @@ int main(int argc, char* argv[])
     // 启动相机线程
     startCameraThread();
 
+    // 启动串口线程
+    startSerialThread();
+
     ULOG_INFO_TAG("main","Application started.");
 
     // 主循环
@@ -66,9 +72,11 @@ int main(int argc, char* argv[])
         std::this_thread::sleep_for(std::chrono::milliseconds(30));
     }
 
+    // 停止串口线程
+    stopSerialThread();
+
     // 停止相机线程
     stopCameraThread();
-
 
     // 停止PubSub消息中心
     stopPubSubThread();

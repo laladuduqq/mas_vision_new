@@ -1,0 +1,20 @@
+serial:
+  # 是否使用虚拟串口模式
+  virtual: true
+  # 虚拟串口参数（仅在virtual为true时使用）
+  virtual_params:
+    update_rate: 100  # Hz
+    yaw: 30.0
+    pitch: 15.0
+    roll: 5.0
+    mode_: 0
+  
+  # 物理串口参数（仅在virtual为false时使用）
+  port: "/dev/ttyACM0"
+  baudrate: 115200
+  timeout: 1000
+  bytesize: 8
+  parity: "none"
+  stopbits: 1
+  flowcontrol: "none"
+  receive_packet_size: 11

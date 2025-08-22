@@ -2,7 +2,7 @@
  * @Author: laladuduqq 2807523947@qq.com
  * @Date: 2025-07-28 18:10:53
  * @LastEditors: laladuduqq 2807523947@qq.com
- * @LastEditTime: 2025-08-21 22:47:18
+ * @LastEditTime: 2025-08-22 13:17:27
  * @FilePath: /mas_vision_new/hikcamera/thread/cam_thread.cpp
  * @Description:
  */
@@ -207,8 +207,6 @@ void startCameraThread() {
 void stopCameraThread() {
     camera_thread_running = false;
     // 等待相机线程完全退出
-    while (!camera_thread_finished.load()) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));
-    }
+    while (!camera_thread_finished.load());
     ULOG_INFO_TAG("Camera", "Camera thread stopped");
 }

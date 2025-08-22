@@ -6,7 +6,11 @@
 #include "MvCameraControl.h"
 #include "ulog.hpp"
 
-hikcamera::HikCamera::HikCamera() : handle(NULL), isConnected(false) {
+hikcamera::HikCamera::HikCamera(float exposure_time, float gain) : 
+    handle(NULL), 
+    isConnected(false), 
+    exposure_time(exposure_time), 
+    gain(gain) {
     memset(serialNumber, 0, sizeof(serialNumber));
 }
 
@@ -65,28 +69,6 @@ bool hikcamera::HikCamera::openCamera() {
     {
         ULOG_ERROR_TAG("hikcamera","Open Device fail! nRet [0x%x]", nRet);
         return false;
-    }
-
-    // 默认参数
-    float exposure_time = 5000.0f;
-    float gain = 10.0f;
-
-    try {
-        cv::FileStorage fs("config/camera_set.json", cv::FileStorage::READ);
-        if (!fs.isOpened()) {
-            ULOG_ERROR_TAG("hikcamera","无法打开 JSON 文件，使用默认值");
-        } else {
-            cv::FileNode cam = fs["camera"];
-            if (!cam.empty()) {
-                exposure_time = (float)cam["exposuretime"];  // 支持 int/float 自动转换
-                gain          = (float)cam["gain"];
-            }
-            fs.release();
-            ULOG_INFO_TAG("hikcamera","已加载相机参数");
-        }
-    } catch (const cv::Exception& e) {
-        ULOG_ERROR_TAG("hikcamera","OpenCV 异常%s",e.what());
-
     }
 
     // Exposure time

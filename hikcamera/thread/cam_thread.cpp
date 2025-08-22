@@ -2,7 +2,7 @@
  * @Author: laladuduqq 2807523947@qq.com
  * @Date: 2025-07-28 18:10:53
  * @LastEditors: laladuduqq 2807523947@qq.com
- * @LastEditTime: 2025-08-21 22:47:18
+ * @LastEditTime: 2025-08-22 10:42:57
  * @FilePath: /mas_vision_new/hikcamera/thread/cam_thread.cpp
  * @Description:
  */
@@ -15,6 +15,7 @@
 #include "performance_monitor.hpp"
 #include "ulog.hpp"
 #include "recorder.hpp"
+#include "yaml-cpp/yaml.h"
 
 extern std::atomic<bool> running;
 extern mas_utils::PerformanceMonitor perfMonitor;
@@ -32,25 +33,34 @@ void cameraThreadFunc() {
     // 注册性能监控
     perfMonitor.addThread("CameraThread", perfMonitor.getThreadsId());
     
-    // 在相机线程内部创建相机对象
-    hikcamera::HikCamera cam;
+    // 默认参数
+    float exposure_time = 5000.0f;
+    float gain = 10.0f;
+    // 在相机线程中读取YAML配置文件
     try {
-        cv::FileStorage fs("config/camera_set.json", cv::FileStorage::READ);
-        if (fs.isOpened()) {
-            fs["display"] >> displayEnabled;
-            
-            // 读取录制配置
-            cv::FileNode recordNode = fs["record"];
-            if (!recordNode.empty()) {
-                recordNode["enabled"] >> recordEnabled;
-                recordNode["fps"] >> recordFps;
-            }
-            
-            fs.release();
+        YAML::Node config = YAML::LoadFile("config/camera_set.yaml");
+        if (config["camera"]) {
+            exposure_time = config["camera"]["exposuretime"].as<float>(5000.0f);
+            gain = config["camera"]["gain"].as<float>(10.0f);
+            ULOG_INFO_TAG("Camera","已加载相机参数");
         }
-    } catch (const cv::Exception& e) {
+        
+        // 读取显示配置
+        if (config["display"]) {
+            displayEnabled = config["display"].as<bool>(false);
+        }
+        
+        // 读取录制配置
+        if (config["record"]) {
+            recordEnabled = config["record"]["enabled"].as<bool>(false);
+            recordFps = config["record"]["fps"].as<double>(30.0);
+        }
+    } catch (const std::exception& e) {
         ULOG_ERROR_TAG("Camera", "Failed to load camera config: %s", e.what());
     };
+
+    // 在相机线程内部创建相机对象，传入读取到的参数
+    hikcamera::HikCamera cam(exposure_time, gain);
     
     // 初始化相机
     if (!cam.openCamera()) {

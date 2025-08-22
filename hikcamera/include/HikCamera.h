@@ -2,7 +2,7 @@
  * @Author: laladuduqq 2807523947@qq.com
  * @Date: 2025-07-27 17:37:26
  * @LastEditors: laladuduqq 2807523947@qq.com
- * @LastEditTime: 2025-08-21 21:29:18
+ * @LastEditTime: 2025-08-22 10:38:41
  * @FilePath: /mas_vision_new/hikcamera/include/HikCamera.h
  * @Description: 
  */
@@ -22,7 +22,7 @@ struct CameraFrame {
 namespace hikcamera {
     class HikCamera {
     public:
-        HikCamera();
+        HikCamera(float exposure_time, float gain);
         ~HikCamera();
 
         bool openCamera();
@@ -36,6 +36,10 @@ namespace hikcamera {
         unsigned int g_nPayloadSize; // Payload size for image buffer
         bool PrintDeviceInfo(MV_CC_DEVICE_INFO* pstMVDevInfo);
         int fail_conut_ = 0;
+
+        // 添加配置参数成员变量
+        float exposure_time=5000.0f;
+        float gain=10.0f;
     };
 }
 

@@ -6,6 +6,7 @@ add_library(HikCamera STATIC
 )
 
 find_package(OpenCV REQUIRED)
+find_package(yaml-cpp REQUIRED)
 
 # 手动指定 MVS 路径（安装默认 /opt/MVS）
 set(MVS_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/SDK")
@@ -29,6 +30,7 @@ target_link_libraries(HikCamera PUBLIC
     ${OpenCV_LIBS}
     MvCameraControl
     rm_utils
+    yaml-cpp::yaml-cpp
 )
 
 # 运行时 rpath，防止找不到 .so

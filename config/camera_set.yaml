@@ -7,14 +7,14 @@ calibration:
   square_size: 0.0235
   min_images: 10
   max_images: 250
-  output_file: "config/camera_calibration.json"
+  camera_matrix: [1701.0185972064537, 0, 651.1726722350835, 0, 1701.5350289904031, 510.8031095770206, 0, 0, 1]
+  distort_coeffs: [-0.5205994776351952, 0.6605064895577076, 0.0006435995018867705, 0.000890745564907041, -1.3111138864209606]
+  reprojection_error: 0.02979038134874616
 display: true
 record:
   enabled: false
   fps: 30.0
-# 添加模式配置：camera 或 video
-mode: "video"
-# 视频配置（仅在mode为video时使用）
+mode: camera
 video:
-  path: "test.mp4"
+  path: test.mp4
   fps: 30.0

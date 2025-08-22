@@ -2,7 +2,7 @@
  * @Author: laladuduqq 2807523947@qq.com
  * @Date: 2025-08-17 16:17:20
  * @LastEditors: laladuduqq 2807523947@qq.com
- * @LastEditTime: 2025-08-22 13:15:23
+ * @LastEditTime: 2025-08-22 21:00:33
  * @FilePath: /mas_vision_new/applications/main.cpp
  * @Description: 
  */
@@ -11,12 +11,11 @@
 #include "ulog.hpp"
 #include <thread>
 #include <atomic>
-#include <iostream>
 #include <signal.h>
 #include <sys/syscall.h>
 #include <unistd.h>
 
-std::atomic<bool> running(true);
+
 
 // 声明线程函数
 // camera
@@ -29,6 +28,10 @@ void stopPubSubThread();
 void startSerialThread();
 void stopSerialThread();
 
+// 声明校准函数
+int runCalibration();
+
+std::atomic<bool> running(true);
 // 性能监控器实例
 mas_utils::PerformanceMonitor perfMonitor;
 
@@ -40,6 +43,11 @@ void signalHandler(int signum) {
 
 int main(int argc, char* argv[])
 {
+    // 检查命令行参数，如果提供了calibrate参数，则运行校准模式
+    if (argc > 1 && std::string(argv[1]) == "calibrate") {
+        return runCalibration();
+    }
+
     // 注册信号处理函数
     signal(SIGINT, signalHandler);
 

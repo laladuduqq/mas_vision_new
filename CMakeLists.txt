@@ -31,6 +31,7 @@ endforeach()
 # 添加可执行文件
 add_executable(${PROJECT_NAME}
     ${CMAKE_CURRENT_SOURCE_DIR}/applications/main.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/applications/calibration/calibrate_camera.cpp
 )
 
 

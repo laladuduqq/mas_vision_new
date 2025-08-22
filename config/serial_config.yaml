@@ -17,4 +17,3 @@ serial:
   parity: "none"
   stopbits: 1
   flowcontrol: "none"
-  receive_packet_size: 11

@@ -75,8 +75,6 @@ void serialThreadFunc() {
                 else if (fc == "hardware") flowcontrol = serial::flowcontrol_hardware;
                 else flowcontrol = serial::flowcontrol_none;
             }
-            if (config["serial"]["receive_packet_size"])
-                packet_size = config["serial"]["receive_packet_size"].as<size_t>(sizeof(ReceivePacket));
         }
     } catch (const std::exception& e) {
         ULOG_WARNING_TAG("Serial", "Failed to load serial config, using defaults: %s", e.what());

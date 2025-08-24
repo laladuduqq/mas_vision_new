@@ -2,7 +2,7 @@
  * @Author: laladuduqq 2807523947@qq.com
  * @Date: 2025-08-22 23:15:00
  * @LastEditors: laladuduqq 2807523947@qq.com
- * @LastEditTime: 2025-08-24 16:39:37
+ * @LastEditTime: 2025-08-24 23:15:59
  * @FilePath: /mas_vision_new/auto_aim/thread/auto_aim_thread.cpp
  * @Description: 自动瞄准线程实现
  */
@@ -13,6 +13,7 @@
 #include "serial_types.hpp"
 #include "HikCamera.h"
 
+#include <string>
 #include <thread>
 #include <atomic>
 #include <chrono>
@@ -67,9 +68,12 @@ void autoAimThreadFunc() {
     
     ULOG_INFO_TAG("AutoAim", "Subscribed to camera and serial data");
 
-    auto last_log_time = std::chrono::steady_clock::now();
-    int frame_count = 0;
-    double total_processing_time = 0.0;
+    // FPS计算相关变量
+    auto lastTime = std::chrono::steady_clock::now();
+    int frameCount = 0;
+    double fps = 0.0;
+    // 处理时间计算
+    double processTime = 0.0;
     
     // 主处理循环
     while (running.load() && auto_aim_thread_running.load()) {
@@ -80,15 +84,27 @@ void autoAimThreadFunc() {
             
             // 执行装甲板检测
             if (armor_detector && !latest_frame.frame.empty()) {
-                auto start_time = std::chrono::high_resolution_clock::now();
-                
+                auto processStartTime = std::chrono::steady_clock::now();
                 // 检测装甲板
                 auto armors = armor_detector->ArmorDetect(latest_frame.frame);
-                
-                auto end_time = std::chrono::high_resolution_clock::now();
-                auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time);
-                double processing_time_ms = duration.count();
-                std::cout << "Processing time: " << processing_time_ms << " ms" << std::endl;
+                cv::Mat display = armor_detector->showResult(latest_frame.frame);
+                // 计算处理时间
+                auto processEndTime = std::chrono::steady_clock::now();
+                processTime = std::chrono::duration<double, std::milli>(processEndTime - processStartTime).count();
+                // 计算FPS
+                frameCount++;
+                auto currentTime = std::chrono::steady_clock::now();
+                double elapsedTime = std::chrono::duration<double>(currentTime - lastTime).count();
+                if (elapsedTime >= 1.0) {
+                    fps = frameCount / elapsedTime;
+                    frameCount = 0;
+                    lastTime = currentTime;
+                }
+                std::string fps_info = "FPS: " + std::to_string(static_cast<int>(fps));
+                cv::putText(display,fps_info,cv::Point(10, 60),cv::FONT_HERSHEY_SIMPLEX,0.5,cv::Scalar(0, 255, 0),1);
+                std::string process_info = "Process Time: " + std::to_string(processTime) + " ms";
+                cv::putText(display,process_info,cv::Point(10, 35),cv::FONT_HERSHEY_SIMPLEX,0.5,cv::Scalar(0, 255, 0),1);
+                cv::imshow("Armor Detection Result", display);
             }
         }
         
@@ -99,6 +115,7 @@ void autoAimThreadFunc() {
         }
     }
     
+    cv::destroyAllWindows();
     // 清理资源
     armor_detector.reset();
     

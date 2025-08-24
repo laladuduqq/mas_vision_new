@@ -2,7 +2,7 @@
  * @Author: laladuduqq 2807523947@qq.com
  * @Date: 2025-08-22 13:47:12
  * @LastEditors: laladuduqq 2807523947@qq.com
- * @LastEditTime: 2025-08-24 19:35:51
+ * @LastEditTime: 2025-08-24 23:01:14
  * @FilePath: /mas_vision_new/auto_aim/armor_detector/armor_detector.cpp
  * @Description: 
  */
@@ -92,18 +92,12 @@ std::vector<Armor> ArmorDetector::ArmorDetect(const cv::Mat & bgr_img)
   cv::threshold(gray, binary, threshold_, 255, cv::THRESH_BINARY);
   // 寻找灯条
   lights_ = findLights(binary,bgr_img);
-  // 对每个灯条应用角点优化
-  // for (auto& light : lights_) {
-  //     lightbar_points_corrector(light, gray);
-  // }
   // 寻找装甲板
   armors_ = findArmors(lights_,bgr_img);
-
-  // 根据debug_标志显示图像
-  if (debug_) {
-      showDebugImages(bgr_img, binary, lights_, armors_);
-  } else {
-      showResultImage(bgr_img, armors_);
+  // 对识别出的装甲板中的每个灯条应用角点优化
+  for (auto& armor : armors_) {
+      lightbar_points_corrector(armor.left_light, gray);
+      lightbar_points_corrector(armor.right_light, gray);
   }
 
   return armors_;
@@ -453,133 +447,144 @@ ArmorType ArmorDetector::isArmor(const LightBar & light_1, const LightBar & ligh
 
 
 
-void ArmorDetector::showDebugImages(const cv::Mat& bgr_img, const cv::Mat& binary, 
-                                   const std::vector<LightBar>& lights, const std::vector<Armor>& armors) const
+cv::Mat ArmorDetector::showResult(const cv::Mat& bgr_img) const
 {
-    // 根据输入图像大小自动计算显示尺寸，整体为原图尺寸
-    int display_width = bgr_img.cols;
-    int display_height = bgr_img.rows;
-    
-    // 确保最小尺寸
-    display_width = std::max(display_width, 640);
-    display_height = std::max(display_height, 480);
-    
-    // 增加宽度以容纳更宽的数字图像区域 (增加50像素)
-    int number_img_width = 100; // 原来是 half_width，现在增加宽度
-    display_width += 50;
-    
-    // 创建显示窗口，分为四个区域加一个数字图像区域
-    cv::Mat debug_display(display_height, display_width, CV_8UC3, cv::Scalar(0, 0, 0));
-    
-    // 计算每个子图像的尺寸
-    int half_width = (display_width - number_img_width) / 2;
-    int half_height = display_height / 2;
-    
-    // 1. 显示原始图像 (左上角)
-    cv::Mat resized_bgr;
-    cv::resize(bgr_img, resized_bgr, cv::Size(half_width, half_height), 0, 0, cv::INTER_LINEAR);
-    resized_bgr.copyTo(debug_display(cv::Rect(0, 0, half_width, half_height)));
-    cv::putText(debug_display, "Original Image", cv::Point(10, 20), cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 255, 255), 1);
-    
-    // 2. 显示二值化图像 (右上角)
-    cv::Mat resized_binary;
-    cv::resize(binary, resized_binary, cv::Size(half_width, half_height), 0, 0, cv::INTER_LINEAR);
-    cv::cvtColor(resized_binary, resized_binary, cv::COLOR_GRAY2BGR);
-    resized_binary.copyTo(debug_display(cv::Rect(half_width, 0, half_width, half_height)));
-    cv::putText(debug_display, "Binary Image", cv::Point(half_width + 10, 20), cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 255, 255), 1);
-    
-    // 3. 显示灯条和角点 (左下角)
-    cv::Mat lights_img = bgr_img.clone();
-    for (const auto& light : lights) {
-        // 使用线条绘制灯条
-        cv::line(lights_img, light.top, light.bottom, cv::Scalar(0, 255, 0), 3);
-        cv::circle(lights_img, light.top, 3, cv::Scalar(0, 0, 255), 3);
-        cv::circle(lights_img, light.bottom, 3, cv::Scalar(0, 0, 255), 3);
-        cv::circle(lights_img, light.center, 3, cv::Scalar(0, 255, 0), 3);
-    }
-    cv::Mat resized_lights;
-    cv::resize(lights_img, resized_lights, cv::Size(half_width, half_height), 0, 0, cv::INTER_LINEAR);
-    resized_lights.copyTo(debug_display(cv::Rect(0, half_height, half_width, half_height)));
-    cv::putText(debug_display, "Lights and Corners", cv::Point(10, half_height + 20), cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 255, 255), 1);
-    cv::putText(debug_display, "Lights Count: " + std::to_string(lights.size()), cv::Point(10, half_height + 40), cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 255, 255), 1);
-    
-    // 4. 显示装甲板 (右下角)
-    cv::Mat armor_img = bgr_img.clone();
-    for (const auto& armor : armors) {
-        // 绘制装甲板轮廓
-        std::vector<cv::Point2f> armor_points = {
-            armor.left_light.top,
-            armor.right_light.top,
-            armor.right_light.bottom,
-            armor.left_light.bottom
-        };
+    if (debug_)
+    {
+        // 根据输入图像大小自动计算显示尺寸，整体为原图尺寸
+        int display_width = bgr_img.cols;
+        int display_height = bgr_img.rows;
         
-        for (size_t i = 0; i < armor_points.size(); i++) {
-            cv::line(armor_img, armor_points[i], armor_points[(i+1)%4], cv::Scalar(0, 255, 0), 2);
+        // 确保最小尺寸
+        display_width = std::max(display_width, 640);
+        display_height = std::max(display_height, 480);
+        
+        // 增加宽度以容纳更宽的数字图像区域 (增加50像素)
+        int number_img_width = 100; // 原来是 half_width，现在增加宽度
+        display_width += 50;
+        
+        // 创建显示窗口，分为四个区域加一个数字图像区域
+        cv::Mat debug_display(display_height, display_width, CV_8UC3, cv::Scalar(0, 0, 0));
+        
+        // 计算每个子图像的尺寸
+        int half_width = (display_width - number_img_width) / 2;
+        int half_height = display_height / 2;
+        
+        // 1. 显示原始图像 (左上角)
+        cv::Mat resized_bgr;
+        cv::resize(bgr_img, resized_bgr, cv::Size(half_width, half_height), 0, 0, cv::INTER_LINEAR);
+        resized_bgr.copyTo(debug_display(cv::Rect(0, 0, half_width, half_height)));
+        cv::putText(debug_display, "Original Image", cv::Point(10, 20), cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 255, 255), 1);
+        
+        // 2. 显示二值化图像 (右上角)
+        cv::Mat resized_binary;
+        // 转换为灰度图
+        cv::Mat gray;
+        if (bgr_img.channels() == 3) {
+            cv::cvtColor(bgr_img, gray, cv::COLOR_BGR2GRAY);
+        } else {
+            gray = bgr_img;
         }
+        cv::Mat binary;
+        // 应用阈值进行二值化
+        cv::threshold(gray, binary, threshold_, 255, cv::THRESH_BINARY);
+        cv::resize(binary, resized_binary, cv::Size(half_width, half_height), 0, 0, cv::INTER_LINEAR);
+        cv::cvtColor(resized_binary, resized_binary, cv::COLOR_GRAY2BGR);
+        resized_binary.copyTo(debug_display(cv::Rect(half_width, 0, half_width, half_height)));
+        cv::putText(debug_display, "Binary Image", cv::Point(half_width + 10, 20), cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 255, 255), 1);
         
-        // 显示装甲板信息
-        std::string armor_info = armor.name + " (" + std::to_string(armor.confidence).substr(0, 4) + ")";
-        cv::putText(armor_img, armor_info, armor.center, cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 255, 255), 1);
-    }
-    
-    cv::Mat resized_armor;
-    cv::resize(armor_img, resized_armor, cv::Size(half_width, half_height), 0, 0, cv::INTER_LINEAR);
-    resized_armor.copyTo(debug_display(cv::Rect(half_width, half_height, half_width, half_height)));
-    cv::putText(debug_display, "Armors and Numbers", cv::Point(half_width + 10, half_height + 20), cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 255, 255), 1);
-    
-    // 5. 显示所有数字图像 (整体右侧)
-    if (!armors.empty()) {
-        cv::Mat all_numbers_img = getAllNumbersImage();
-        if (!all_numbers_img.empty()) {
-            cv::Mat resized_numbers_img;
-            cv::Mat colored_numbers_img;
+        // 3. 显示灯条和角点 (左下角)
+        cv::Mat lights_img = bgr_img.clone();
+        for (const auto& light : lights_) {
+            // 使用线条绘制灯条
+            cv::line(lights_img, light.top, light.bottom, cv::Scalar(0, 255, 0), 3);
+            cv::circle(lights_img, light.top, 3, cv::Scalar(0, 0, 255), 3);
+            cv::circle(lights_img, light.bottom, 3, cv::Scalar(0, 0, 255), 3);
+            cv::circle(lights_img, light.center, 3, cv::Scalar(0, 255, 0), 3);
+        }
+        cv::Mat resized_lights;
+        cv::resize(lights_img, resized_lights, cv::Size(half_width, half_height), 0, 0, cv::INTER_LINEAR);
+        resized_lights.copyTo(debug_display(cv::Rect(0, half_height, half_width, half_height)));
+        cv::putText(debug_display, "Lights and Corners", cv::Point(10, half_height + 20), cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 255, 255), 1);
+        cv::putText(debug_display, "Lights Count: " + std::to_string(lights_.size()), cv::Point(10, half_height + 40), cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 255, 255), 1);
+        
+        // 4. 显示装甲板 (右下角)
+        cv::Mat armor_img = bgr_img.clone();
+        for (const auto& armor : armors_) {
+            // 绘制装甲板轮廓
+            std::vector<cv::Point2f> armor_points = {
+                armor.left_light.top,
+                armor.right_light.top,
+                armor.right_light.bottom,
+                armor.left_light.bottom
+            };
             
-            // 确保数字图像是三通道的
-            if (all_numbers_img.channels() == 1) {
-                cv::cvtColor(all_numbers_img, colored_numbers_img, cv::COLOR_GRAY2BGR);
-            } else {
-                colored_numbers_img = all_numbers_img;
+            for (size_t i = 0; i < armor_points.size(); i++) {
+                cv::line(armor_img, armor_points[i], armor_points[(i+1)%4], cv::Scalar(0, 255, 0), 2);
             }
             
-            // 计算数字图像区域的尺寸 (右侧垂直条)
-            cv::Rect number_area(half_width * 2, 0, number_img_width, display_height);
-            // 缩放数字图像以适应显示区域
-            cv::resize(colored_numbers_img, resized_numbers_img, cv::Size(number_img_width, display_height), 0, 0, cv::INTER_LINEAR);
-            // 将缩放后的数字图像复制到显示区域
-            resized_numbers_img.copyTo(debug_display(number_area));
-            cv::putText(debug_display, "Number Images", cv::Point(half_width * 2 + 10, 20), cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 255, 255), 1);
-        }
-    }
-    
-    cv::imshow("Debug Display", debug_display);
-}
-
-
-void ArmorDetector::showResultImage(const cv::Mat& bgr_img, const std::vector<Armor>& armors) const
-{
-    cv::Mat result_img = bgr_img.clone();
-    
-    // 绘制装甲板
-    for (const auto& armor : armors) {
-        std::vector<cv::Point2f> armor_points = {
-            armor.left_light.top,
-            armor.right_light.top,
-            armor.right_light.bottom,
-            armor.left_light.bottom
-        };
-        
-        for (size_t i = 0; i < armor_points.size(); i++) {
-            cv::line(result_img, armor_points[i], armor_points[(i+1)%4], cv::Scalar(0, 255, 0), 2);
+            // 显示装甲板信息
+            std::string armor_info = armor.name + " (" + std::to_string(armor.confidence).substr(0, 4) + ")";
+            cv::putText(armor_img, armor_info, armor.center, cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 255, 255), 1);
         }
         
-        cv::putText(result_img, armor.name, armor.center, cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0, 255, 255), 2);
+        cv::Mat resized_armor;
+        cv::resize(armor_img, resized_armor, cv::Size(half_width, half_height), 0, 0, cv::INTER_LINEAR);
+        resized_armor.copyTo(debug_display(cv::Rect(half_width, half_height, half_width, half_height)));
+        cv::putText(debug_display, "Armors and Numbers", cv::Point(half_width + 10, half_height + 20), cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 255, 255), 1);
+        
+        // 5. 显示所有数字图像 (整体右侧)
+        if (!armors_.empty()) {
+            cv::Mat all_numbers_img = getAllNumbersImage();
+            if (!all_numbers_img.empty()) {
+                cv::Mat resized_numbers_img;
+                cv::Mat colored_numbers_img;
+                
+                // 确保数字图像是三通道的
+                if (all_numbers_img.channels() == 1) {
+                    cv::cvtColor(all_numbers_img, colored_numbers_img, cv::COLOR_GRAY2BGR);
+                } else {
+                    colored_numbers_img = all_numbers_img;
+                }
+                
+                // 计算数字图像区域的尺寸 (右侧垂直条)
+                cv::Rect number_area(half_width * 2, 0, number_img_width, display_height);
+                // 缩放数字图像以适应显示区域
+                cv::resize(colored_numbers_img, resized_numbers_img, cv::Size(number_img_width, display_height), 0, 0, cv::INTER_LINEAR);
+                // 将缩放后的数字图像复制到显示区域
+                resized_numbers_img.copyTo(debug_display(number_area));
+                cv::putText(debug_display, "Number Images", cv::Point(half_width * 2 + 10, 20), cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 255, 255), 1);
+            }
+        }
+        
+        return debug_display;
     }
-    
-    // 缩放到640*480
-    cv::Mat resized_result;
-    cv::resize(result_img, resized_result, cv::Size(640, 480), 0, 0, cv::INTER_LINEAR);
-    cv::imshow("Detected Armors", resized_result);
+    else
+    {
+        cv::Mat result_img = bgr_img.clone();
+        // 绘制装甲板
+        for (const auto& armor : armors_) {
+            std::vector<cv::Point2f> armor_points = {
+                armor.left_light.top,
+                armor.right_light.top,
+                armor.right_light.bottom,
+                armor.left_light.bottom
+            };
+            
+            for (size_t i = 0; i < armor_points.size(); i++) {
+                cv::line(result_img, armor_points[i], armor_points[(i+1)%4], cv::Scalar(0, 255, 0), 2);
+            }
+            // 显示装甲板信息
+            std::string armor_info = armor.name + " (" + std::to_string(armor.confidence).substr(0, 4) + ")";
+            cv::putText(result_img, armor_info, armor.center, cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0, 255, 255), 2);
+        }
+        
+        // 缩放到640*480
+        cv::Mat resized_result;
+        cv::resize(result_img, resized_result, cv::Size(640, 480), 0, 0, cv::INTER_LINEAR);
+     
+        return resized_result;
+    }
 }
 
 cv::Mat ArmorDetector::getAllNumbersImage() const

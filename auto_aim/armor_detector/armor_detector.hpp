@@ -2,7 +2,7 @@
  * @Author: laladuduqq 2807523947@qq.com
  * @Date: 2025-08-22 13:47:26
  * @LastEditors: laladuduqq 2807523947@qq.com
- * @LastEditTime: 2025-08-24 18:36:46
+ * @LastEditTime: 2025-08-24 23:04:23
  * @FilePath: /mas_vision_new/auto_aim/armor_detector/armor_detector.hpp
  * @Description: 
  */
@@ -22,6 +22,7 @@ class ArmorDetector
     ArmorDetector();
 
     std::vector<Armor> ArmorDetect(const cv::Mat & bgr_img);
+    cv::Mat showResult(const cv::Mat& bgr_img) const;
 
     private:
     //识别参数
@@ -59,9 +60,6 @@ class ArmorDetector
     std::vector<Armor> findArmors(const std::vector<LightBar> & lightbars,const cv::Mat & bgr_img);
     ArmorType isArmor(const LightBar & light_1, const LightBar & light_2) const;
     bool containLight(const LightBar & light_1, const LightBar & light_2, const std::vector<LightBar> & lights) const;
-    void showResultImage(const cv::Mat& bgr_img, const std::vector<Armor>& armors) const;
-    void showDebugImages(const cv::Mat& bgr_img, const cv::Mat& binary, 
-                                   const std::vector<LightBar>& lights, const std::vector<Armor>& armors) const;
     cv::Mat getAllNumbersImage() const ;
 };
 

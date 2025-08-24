@@ -2,7 +2,7 @@
  * @Author: laladuduqq 2807523947@qq.com
  * @Date: 2025-08-17 16:17:20
  * @LastEditors: laladuduqq 2807523947@qq.com
- * @LastEditTime: 2025-08-22 21:00:33
+ * @LastEditTime: 2025-08-22 23:24:03
  * @FilePath: /mas_vision_new/applications/main.cpp
  * @Description: 
  */
@@ -27,6 +27,9 @@ void stopPubSubThread();
 // serial
 void startSerialThread();
 void stopSerialThread();
+// auto aim
+void startAutoAimThread();
+void stopAutoAimThread();
 
 // 声明校准函数
 int runCalibration();
@@ -69,6 +72,9 @@ int main(int argc, char* argv[])
     // 启动串口线程
     startSerialThread();
 
+    // 启动自动瞄准线程
+    startAutoAimThread();
+
     ULOG_INFO_TAG("main","Application started.");
 
     // 主循环
@@ -79,6 +85,10 @@ int main(int argc, char* argv[])
         // 主循环可以处理其他任务
         std::this_thread::sleep_for(std::chrono::milliseconds(30));
     }
+
+
+    // 停止自动瞄准线程
+    stopAutoAimThread();
 
     // 停止串口线程
     stopSerialThread();

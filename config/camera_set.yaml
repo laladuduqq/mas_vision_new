@@ -14,7 +14,7 @@ display: true
 record:
   enabled: false
   fps: 30.0
-mode: camera
+mode: video  # camera or video
 video:
   path: test.mp4
-  fps: 30.0
+  fps: 90.0

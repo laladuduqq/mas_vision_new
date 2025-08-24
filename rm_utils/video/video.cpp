@@ -2,7 +2,7 @@
  * @Author: laladuduqq 2807523947@qq.com
  * @Date: 2025-08-22 10:53:45
  * @LastEditors: laladuduqq 2807523947@qq.com
- * @LastEditTime: 2025-08-22 10:54:30
+ * @LastEditTime: 2025-08-24 19:37:51
  * @FilePath: /mas_vision_new/rm_utils/video/video.cpp
  * @Description: 
  */
@@ -35,6 +35,17 @@ bool VideoPlayer::open(const std::string& videoPath) {
     
     isVideoOpened = true;
     lastFrameTime = std::chrono::high_resolution_clock::now();
+    
+    // 获取视频实际FPS
+    double actualFPS = videoCapture.get(cv::CAP_PROP_FPS);
+    ULOG_INFO_TAG("VideoPlayer", "视频实际FPS: %f", actualFPS);
+    
+    // 如果目标FPS高于实际FPS，则调整目标FPS为实际FPS
+    if (targetFPS > actualFPS && actualFPS > 0) {
+        ULOG_WARNING_TAG("VideoPlayer", "目标FPS (%f) 高于视频实际FPS (%f)，将目标FPS调整为实际FPS", targetFPS, actualFPS);
+        targetFPS = actualFPS;
+    }
+    
     ULOG_INFO_TAG("VideoPlayer", "成功打开视频文件: %s", videoPath.c_str());
     return true;
 }
@@ -104,8 +115,19 @@ cv::Size VideoPlayer::getFrameSize() const {
 }
 
 void VideoPlayer::setTargetFPS(double fps) {
-    targetFPS = fps;
-    ULOG_DEBUG_TAG("VideoPlayer", "设置目标FPS: %f", fps);
+    // 在视频打开后设置FPS时，需要检查视频实际FPS
+    if (isOpened()) {
+        double actualFPS = videoCapture.get(cv::CAP_PROP_FPS);
+        if (fps > actualFPS && actualFPS > 0) {
+            ULOG_WARNING_TAG("VideoPlayer", "设置的目标FPS (%f) 高于视频实际FPS (%f)，将目标FPS调整为实际FPS", fps, actualFPS);
+            targetFPS = actualFPS;
+        } else {
+            targetFPS = fps;
+        }
+    } else {
+        targetFPS = fps;
+    }
+    ULOG_DEBUG_TAG("VideoPlayer", "设置目标FPS: %f", targetFPS);
 }
 
 double VideoPlayer::getTargetFPS() const {

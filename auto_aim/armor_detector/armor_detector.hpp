@@ -2,7 +2,7 @@
  * @Author: laladuduqq 2807523947@qq.com
  * @Date: 2025-08-22 13:47:26
  * @LastEditors: laladuduqq 2807523947@qq.com
- * @LastEditTime: 2025-08-24 23:04:23
+ * @LastEditTime: 2025-08-26 22:03:56
  * @FilePath: /mas_vision_new/auto_aim/armor_detector/armor_detector.hpp
  * @Description: 
  */
@@ -11,6 +11,7 @@
 
 #include <opencv2/core/mat.hpp>
 
+#include "armor_pose.hpp"
 #include "armor_types.hpp"
 #include "number_classifier.hpp"
 
@@ -52,6 +53,8 @@ class ArmorDetector
     // 数字识别器
     std::unique_ptr<NumberClassifier> classifier_;
     double confidence;
+    // 姿态估计器
+    std::unique_ptr<ArmorPoseEstimator> pose_estimator_;
 
     // 辅助函数
     void lightbar_points_corrector(LightBar & lightbar, const cv::Mat & gray_img) const;

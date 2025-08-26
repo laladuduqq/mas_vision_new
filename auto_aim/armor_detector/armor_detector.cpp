@@ -2,7 +2,7 @@
  * @Author: laladuduqq 2807523947@qq.com
  * @Date: 2025-08-22 13:47:12
  * @LastEditors: laladuduqq 2807523947@qq.com
- * @LastEditTime: 2025-08-24 23:01:14
+ * @LastEditTime: 2025-08-26 22:15:10
  * @FilePath: /mas_vision_new/auto_aim/armor_detector/armor_detector.cpp
  * @Description: 
  */
@@ -75,6 +75,14 @@ ArmorDetector::ArmorDetector()
     } catch (const std::exception& e) {
         ULOG_WARNING_TAG("armor_detector", "Failed to load config, using defaults: %s", e.what());
     }
+    // 初始化姿态估计器
+    try {
+        pose_estimator_ = std::make_unique<ArmorPoseEstimator>("config/camera_set.yaml");
+        ULOG_INFO_TAG("armor_detector", "ArmorPoseEstimator initialized successfully");
+    } catch (const std::exception& e) {
+        ULOG_ERROR_TAG("armor_detector", "Failed to initialize ArmorPoseEstimator: %s", e.what());
+        pose_estimator_ = nullptr;
+    }
 }
 
 
@@ -98,6 +106,14 @@ std::vector<Armor> ArmorDetector::ArmorDetect(const cv::Mat & bgr_img)
   for (auto& armor : armors_) {
       lightbar_points_corrector(armor.left_light, gray);
       lightbar_points_corrector(armor.right_light, gray);
+      armor.points.emplace_back(armor.left_light.top);
+      armor.points.emplace_back(armor.right_light.top);
+      armor.points.emplace_back(armor.right_light.bottom);
+      armor.points.emplace_back(armor.left_light.bottom);
+      // 进行姿态估计
+      if (pose_estimator_) {
+          pose_estimator_->estimatePose(armor);
+      }
   }
 
   return armors_;
@@ -526,6 +542,19 @@ cv::Mat ArmorDetector::showResult(const cv::Mat& bgr_img) const
             // 显示装甲板信息
             std::string armor_info = armor.name + " (" + std::to_string(armor.confidence).substr(0, 4) + ")";
             cv::putText(armor_img, armor_info, armor.center, cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 255, 255), 1);
+            // 显示装甲板位姿信息
+            std::string position_info = "X:" + std::to_string(armor.xyz_in_gimbal[0]).substr(0, 5) + 
+                                      " Y:" + std::to_string(armor.xyz_in_gimbal[1]).substr(0, 5) + 
+                                      " Z:" + std::to_string(armor.xyz_in_gimbal[2]).substr(0, 5);
+            cv::putText(armor_img, position_info, 
+                       cv::Point(armor.center.x, armor.center.y + 40), 
+                       cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(0, 255, 0), 2);
+            std::string angle_info = "Y:" + std::to_string(armor.ypr_in_gimbal[0] * 180.0 / CV_PI).substr(0, 5) + 
+                                    " P:" + std::to_string(armor.ypr_in_gimbal[1] * 180.0 / CV_PI).substr(0, 5) + 
+                                    " R:" + std::to_string(armor.ypr_in_gimbal[2] * 180.0 / CV_PI).substr(0, 5);
+            cv::putText(armor_img, angle_info, 
+                       cv::Point(armor.center.x, armor.center.y + 80), 
+                       cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(0, 255, 0), 2);
         }
         
         cv::Mat resized_armor;
@@ -577,6 +606,19 @@ cv::Mat ArmorDetector::showResult(const cv::Mat& bgr_img) const
             // 显示装甲板信息
             std::string armor_info = armor.name + " (" + std::to_string(armor.confidence).substr(0, 4) + ")";
             cv::putText(result_img, armor_info, armor.center, cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0, 255, 255), 2);
+            // 显示装甲板位姿信息
+            std::string position_info = "X:" + std::to_string(armor.xyz_in_gimbal[0]).substr(0, 5) + 
+                                      " Y:" + std::to_string(armor.xyz_in_gimbal[1]).substr(0, 5) + 
+                                      " Z:" + std::to_string(armor.xyz_in_gimbal[2]).substr(0, 5);
+            cv::putText(result_img, position_info, 
+                       cv::Point(armor.center.x, armor.center.y + 40), 
+                       cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(0, 255, 0), 2);
+            std::string angle_info = "Y:" + std::to_string(armor.ypr_in_gimbal[0] * 180.0 / CV_PI).substr(0, 5) + 
+                                    " P:" + std::to_string(armor.ypr_in_gimbal[1] * 180.0 / CV_PI).substr(0, 5) + 
+                                    " R:" + std::to_string(armor.ypr_in_gimbal[2] * 180.0 / CV_PI).substr(0, 5);
+            cv::putText(result_img, angle_info, 
+                       cv::Point(armor.center.x, armor.center.y + 80), 
+                       cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(0, 255, 0), 2);
         }
         
         // 缩放到640*480

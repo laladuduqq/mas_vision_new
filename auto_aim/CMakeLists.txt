@@ -2,6 +2,7 @@
 add_library(auto_aim STATIC
     ${CMAKE_CURRENT_SOURCE_DIR}/armor_detector/armor_detector.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/armor_detector/number_classifier.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/armor_detector/armor_pose.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/thread/auto_aim_thread.cpp
 )
 

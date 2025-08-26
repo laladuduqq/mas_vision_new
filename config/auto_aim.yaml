@@ -1,6 +1,6 @@
 auto_aim:
   armor_detector:
-    debug: false
+    debug: true
     binary_thres: 140
     detect_color: BLUE
     lights_params:

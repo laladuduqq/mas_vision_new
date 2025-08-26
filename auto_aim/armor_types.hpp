@@ -2,7 +2,7 @@
  * @Author: laladuduqq 2807523947@qq.com
  * @Date: 2025-08-22 21:54:23
  * @LastEditors: laladuduqq 2807523947@qq.com
- * @LastEditTime: 2025-08-24 17:45:19
+ * @LastEditTime: 2025-08-26 22:00:14
  * @FilePath: /mas_vision_new/auto_aim/armor_types.hpp
  * @Description: 
  */
@@ -17,12 +17,6 @@
 
 namespace auto_aim
 {
-    // Armor size, Unit: m
-    constexpr double SMALL_ARMOR_WIDTH = 133.0 / 1000.0; // 135
-    constexpr double SMALL_ARMOR_HEIGHT = 50.0 / 1000.0; // 55
-    constexpr double LARGE_ARMOR_WIDTH = 225.0 / 1000.0;
-    constexpr double LARGE_ARMOR_HEIGHT = 50.0 / 1000.0; // 55
-
     enum  EnemyColor
     {
         RED,
@@ -78,6 +72,7 @@ namespace auto_aim
         EnemyColor color;
         LightBar left_light, right_light;     
         cv::Point2f center;       // 不是对角线交点，不能作为实际中心！
+        std::vector<cv::Point2f> points;
         // 装甲板类型
         ArmorType type;
         // 数字识别部分

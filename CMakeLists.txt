@@ -32,6 +32,8 @@ endforeach()
 add_executable(${PROJECT_NAME}
     ${CMAKE_CURRENT_SOURCE_DIR}/applications/main.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/applications/calibration/calibrate_camera.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/applications/calibration/calibrate_handeye.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/applications/calibration/calibrate_worldhandeye.cpp
 )
 
 

@@ -25,10 +25,10 @@ void stopCameraThread();
 
 // 定义内部变量
 static CameraFrame SubImage;
-std::atomic<bool> imagesubReady(false);
-std::atomic<bool> pattern_found(false); // 添加pattern_found变量
+static std::atomic<bool> imagesubReady(false);
+static std::atomic<bool> pattern_found(false); // 添加pattern_found变量
 
-void processImage(const CameraFrame& frame) {
+static void processImage(const CameraFrame& frame) {
     if (!frame.frame.empty())
     {
         SubImage.frame = frame.frame.clone();

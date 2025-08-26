@@ -6,6 +6,7 @@ add_library(rm_utils STATIC
     ${CMAKE_CURRENT_SOURCE_DIR}/ulog/ulog.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/recorder/recorder.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/video/video.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/math/rmmath.cpp
 )
 
 find_package(OpenCV REQUIRED)
@@ -21,6 +22,7 @@ target_include_directories(rm_utils PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/ulog
     ${CMAKE_CURRENT_SOURCE_DIR}/recorder
     ${CMAKE_CURRENT_SOURCE_DIR}/video
+    ${CMAKE_CURRENT_SOURCE_DIR}/math
 )
 
 # 链接所需库

@@ -2,7 +2,7 @@
  * @Author: laladuduqq 2807523947@qq.com
  * @Date: 2025-08-17 16:17:20
  * @LastEditors: laladuduqq 2807523947@qq.com
- * @LastEditTime: 2025-08-22 23:24:03
+ * @LastEditTime: 2025-08-26 21:20:25
  * @FilePath: /mas_vision_new/applications/main.cpp
  * @Description: 
  */
@@ -33,6 +33,8 @@ void stopAutoAimThread();
 
 // 声明校准函数
 int runCalibration();
+int runHandeyeCalibration();
+int runWorldHandEyeCalibration();
 
 std::atomic<bool> running(true);
 // 性能监控器实例
@@ -49,6 +51,12 @@ int main(int argc, char* argv[])
     // 检查命令行参数，如果提供了calibrate参数，则运行校准模式
     if (argc > 1 && std::string(argv[1]) == "calibrate") {
         return runCalibration();
+    }
+    else if (argc > 1 && std::string(argv[1]) == "handeye") {
+        return runHandeyeCalibration();
+    }
+    else if (argc > 1 && std::string(argv[1]) == "worldhandeye") {
+        return runWorldHandEyeCalibration();
     }
 
     // 注册信号处理函数

@@ -2,7 +2,7 @@
  * @Author: laladuduqq 2807523947@qq.com
  * @Date: 2025-08-26 21:46:40
  * @LastEditors: laladuduqq 2807523947@qq.com
- * @LastEditTime: 2025-08-26 21:46:44
+ * @LastEditTime: 2025-08-27 11:59:03
  * @FilePath: /mas_vision_new/auto_aim/armor_detector/armor_pose.hpp
  * @Description: 装甲板姿态估计模块
  */
@@ -26,11 +26,11 @@ public:
     explicit ArmorPoseEstimator(const std::string& config_path);
 
     /**
-     * @brief 计算装甲板的姿态
+     * @brief 计算装甲板的姿态，对外统一接口
      * @param armor 装甲板对象，包含关键点等信息
      * @return 是否成功计算姿态
      */
-    bool estimatePose(Armor& armor);
+    bool solve(Armor& armor);
 
     /**
      * @brief 获取相机内参矩阵
@@ -44,15 +44,28 @@ public:
      */
     cv::Mat getDistCoeffs() const { return dist_coeffs_; }
 
+    /**
+     * @brief 获取云台到世界坐标系的旋转矩阵
+     * @return 旋转矩阵
+     */
+    Eigen::Matrix3d R_gimbal2world() const;
+
+    /**
+     * @brief 设置云台到世界坐标系的旋转矩阵
+     * @param q 旋转矩阵
+     */
+    void set_R_gimbal2world(const Eigen::Quaterniond & q);
+
 private:
     // 相机参数
     cv::Mat camera_matrix_;
     cv::Mat dist_coeffs_;
     
     // 坐标变换参数
-    Eigen::Matrix3d R_gimbal2imubody_;
-    Eigen::Matrix3d R_camera2gimbal_;
-    Eigen::Vector3d t_camera2gimbal_;
+    Eigen::Matrix3d R_gimbal2imubody_;  // 云台->IMU坐标系
+    Eigen::Matrix3d R_camera2gimbal_;   // 相机->云台坐标系
+    Eigen::Vector3d t_camera2gimbal_;   // 相机->IMU坐标系
+    Eigen::Matrix3d R_gimbal2world_;   // 云台->世界坐标系（通过读取imu姿态更新）
 
     // 装甲板3D模型点
     std::vector<cv::Point3f> small_armor_points_;
@@ -69,6 +82,51 @@ private:
      * @return 对应的3D点集
      */
     const std::vector<cv::Point3f>& getArmorPoints(ArmorType type) const;
+    /**
+     * @brief 投影装甲板
+     * @param xyz_in_world 装甲板在世界坐标系下的3D点
+     * @param yaw 装甲板偏航角
+     * @param type 装甲板类型
+     * @param name 装甲板名称
+     * @return 投影后的装甲板点集
+     */
+    std::vector<cv::Point2f> reproject_armor(const Eigen::Vector3d & xyz_in_world, double yaw, ArmorType type, std::string armor_name) const;
+    /**
+     * @brief 优化装甲板偏航角
+     * @param armor 装甲板对象
+     */
+    void optimize_yaw(Armor & armor) const;
+    /**
+     * @brief 计算装甲板投影误差
+     * @param armor 装甲板对象
+     * @param yaw 装甲板偏航角
+     * @param inclined 倾斜角
+     * @return 投影误差
+     */
+    double armor_reprojection_error(const Armor & armor, double yaw, const double & inclined) const;
+    /**
+     * @brief 投影误差计算
+     * @param cv_refs 投影参考点集
+     * @param cv_pts 投影点集
+     * @param inclined 倾斜角
+     * @return 投影误差
+     */
+    double SJTU_cost(const std::vector<cv::Point2f> & cv_refs, 
+    const std::vector<cv::Point2f> & cv_pts,const double & inclined) const;
+
+    /**
+     * @brief 投影装甲板
+     * @param worldPoints 装甲板在世界坐标系下的3D点
+     * @return 投影后的装甲板点集
+     */
+    std::vector<cv::Point2f> world2pixel(const std::vector<cv::Point3f> & worldPoints);
+
+    /**
+     * @brief 内部姿态估计实现
+     * @param armor 装甲板对象
+     * @return 是否成功计算姿态
+     */
+    bool estimatePose(Armor& armor);
 };
 
 } // namespace auto_aim

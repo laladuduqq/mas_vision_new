@@ -2,7 +2,7 @@
  * @Author: laladuduqq 2807523947@qq.com
  * @Date: 2025-08-22 13:47:26
  * @LastEditors: laladuduqq 2807523947@qq.com
- * @LastEditTime: 2025-08-26 22:03:56
+ * @LastEditTime: 2025-08-27 10:05:20
  * @FilePath: /mas_vision_new/auto_aim/armor_detector/armor_detector.hpp
  * @Description: 
  */
@@ -19,11 +19,30 @@ namespace auto_aim {
 class ArmorDetector 
 { 
     public:
-
     ArmorDetector();
-
+    /**
+     * @brief 识别装甲板
+     * @param bgr_img 输入图像
+     * @return 识别到的装甲板
+     */
     std::vector<Armor> ArmorDetect(const cv::Mat & bgr_img);
+    /**
+     * @brief 显示识别结果
+     * @param bgr_img 输入图像
+     * @return 显示结果
+     */
     cv::Mat showResult(const cv::Mat& bgr_img) const;
+        /**
+     * @brief 获取云台到世界坐标系的旋转矩阵
+     * @return 旋转矩阵
+     */
+    Eigen::Matrix3d R_gimbal2world() const;
+
+    /**
+     * @brief 设置云台到世界坐标系的旋转矩阵
+     * @param q 四元数
+     */
+    void set_R_gimbal2world(const Eigen::Quaterniond & q);
 
     private:
     //识别参数

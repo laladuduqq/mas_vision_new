@@ -2,11 +2,11 @@
  * @Author: laladuduqq 2807523947@qq.com
  * @Date: 2025-08-22 23:15:00
  * @LastEditors: laladuduqq 2807523947@qq.com
- * @LastEditTime: 2025-08-24 23:15:59
+ * @LastEditTime: 2025-08-27 10:14:31
  * @FilePath: /mas_vision_new/auto_aim/thread/auto_aim_thread.cpp
  * @Description: 自动瞄准线程实现
  */
-#include "armor_detector/armor_detector.hpp"
+#include "armor_detector.hpp"
 #include "pubsub.hpp"
 #include "performance_monitor.hpp"
 #include "ulog.hpp"
@@ -77,6 +77,13 @@ void autoAimThreadFunc() {
     
     // 主处理循环
     while (running.load() && auto_aim_thread_running.load()) {
+        // 如果有IMU数据，可以在这里处理
+        if (imu_ready.load()) {
+            // 重置IMU就绪标志
+            imu_ready = false;
+            Eigen::Quaterniond q = getSerialDataAt(latest_imu_data.timestamp);
+            armor_detector->set_R_gimbal2world(q);
+        }
         // 检查是否有新的图像数据
         if (frame_ready.load()) {
             // 重置帧就绪标志
@@ -104,14 +111,22 @@ void autoAimThreadFunc() {
                 cv::putText(display,fps_info,cv::Point(10, 60),cv::FONT_HERSHEY_SIMPLEX,0.5,cv::Scalar(0, 255, 0),1);
                 std::string process_info = "Process Time: " + std::to_string(processTime) + " ms";
                 cv::putText(display,process_info,cv::Point(10, 35),cv::FONT_HERSHEY_SIMPLEX,0.5,cv::Scalar(0, 255, 0),1);
+                                // 显示IMU数据
+                std::stringstream imu_info;
+                imu_info << std::fixed << std::setprecision(2);
+                imu_info << "IMU Yaw: " << latest_imu_data.yaw;
+                cv::putText(display, imu_info.str(), cv::Point(10, 85), cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 255, 0), 1);
+                
+                std::stringstream imu_info2;
+                imu_info2 << std::fixed << std::setprecision(2);
+                imu_info2 << "Pitch: " << latest_imu_data.pitch << " Roll: " << latest_imu_data.roll;
+                cv::putText(display, imu_info2.str(), cv::Point(10, 110), cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 255, 0), 1);
+                
+                // 显示模式信息
+                std::string mode_info = "Mode: " + std::to_string(latest_imu_data.mode);
+                cv::putText(display, mode_info, cv::Point(10, 135), cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 255, 0), 1);
                 cv::imshow("Armor Detection Result", display);
             }
-        }
-        
-        // 如果有IMU数据，可以在这里处理
-        if (imu_ready.load()) {
-            // 重置IMU就绪标志
-            imu_ready = false;
         }
     }
     

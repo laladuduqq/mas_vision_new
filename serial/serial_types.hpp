@@ -2,13 +2,14 @@
  * @Author: laladuduqq 2807523947@qq.com
  * @Date: 2025-08-22 11:17:29
  * @LastEditors: laladuduqq 2807523947@qq.com
- * @LastEditTime: 2025-08-22 12:53:03
+ * @LastEditTime: 2025-08-27 09:52:28
  * @FilePath: /mas_vision_new/serial/serial_types.hpp
  * @Description: 
  */
 #ifndef _SERIAL_TYPES_H_
 #define _SERIAL_TYPES_H_
 
+#include <Eigen/Geometry>
 #include <cstdint>
 #include <chrono>
 
@@ -47,5 +48,8 @@ enum VisionMode {
   BIG_RUNE_RED = 4,
   BIG_RUNE_BLUE = 5,
 };
+
+// 声明根据时间戳获取串口数据姿态的函数
+Eigen::Quaterniond getSerialDataAt(std::chrono::steady_clock::time_point timestamp);
 
 #endif // _SERIAL_TYPES_H_

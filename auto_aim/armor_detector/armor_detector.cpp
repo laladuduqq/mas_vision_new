@@ -2,7 +2,7 @@
  * @Author: laladuduqq 2807523947@qq.com
  * @Date: 2025-08-22 13:47:12
  * @LastEditors: laladuduqq 2807523947@qq.com
- * @LastEditTime: 2025-08-26 22:15:10
+ * @LastEditTime: 2025-08-27 23:17:58
  * @FilePath: /mas_vision_new/auto_aim/armor_detector/armor_detector.cpp
  * @Description: 
  */
@@ -112,7 +112,7 @@ std::vector<Armor> ArmorDetector::ArmorDetect(const cv::Mat & bgr_img)
       armor.points.emplace_back(armor.left_light.bottom);
       // 进行姿态估计
       if (pose_estimator_) {
-          pose_estimator_->estimatePose(armor);
+          pose_estimator_->solve(armor);
       }
   }
 
@@ -465,23 +465,20 @@ ArmorType ArmorDetector::isArmor(const LightBar & light_1, const LightBar & ligh
 
 cv::Mat ArmorDetector::showResult(const cv::Mat& bgr_img) const
 {
+    // 根据输入图像大小自动计算显示尺寸，整体为原图尺寸
+    int display_width = bgr_img.cols;
+    int display_height = bgr_img.rows;    
+    // 确保最小尺寸
+    display_width = std::max(display_width, 640);
+    display_height = std::max(display_height, 480);
+    // 增加宽度以容纳更宽的数字图像区域
+    int number_img_width = 100; // 原来是 half_width，现在增加宽度
+    display_width += number_img_width;
+    // 创建显示窗口，分为四个区域加一个数字图像区域（debug）,否则就两个区域
+    cv::Mat debug_display(display_height, display_width, CV_8UC3, cv::Scalar(0, 0, 0));
+
     if (debug_)
     {
-        // 根据输入图像大小自动计算显示尺寸，整体为原图尺寸
-        int display_width = bgr_img.cols;
-        int display_height = bgr_img.rows;
-        
-        // 确保最小尺寸
-        display_width = std::max(display_width, 640);
-        display_height = std::max(display_height, 480);
-        
-        // 增加宽度以容纳更宽的数字图像区域 (增加50像素)
-        int number_img_width = 100; // 原来是 half_width，现在增加宽度
-        display_width += 50;
-        
-        // 创建显示窗口，分为四个区域加一个数字图像区域
-        cv::Mat debug_display(display_height, display_width, CV_8UC3, cv::Scalar(0, 0, 0));
-        
         // 计算每个子图像的尺寸
         int half_width = (display_width - number_img_width) / 2;
         int half_height = display_height / 2;
@@ -541,7 +538,7 @@ cv::Mat ArmorDetector::showResult(const cv::Mat& bgr_img) const
             
             // 显示装甲板信息
             std::string armor_info = armor.name + " (" + std::to_string(armor.confidence).substr(0, 4) + ")";
-            cv::putText(armor_img, armor_info, armor.center, cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 255, 255), 1);
+            cv::putText(armor_img, armor_info, armor.center, cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(0, 255, 255), 2);
             // 显示装甲板位姿信息
             std::string position_info = "X:" + std::to_string(armor.xyz_in_gimbal[0]).substr(0, 5) + 
                                       " Y:" + std::to_string(armor.xyz_in_gimbal[1]).substr(0, 5) + 
@@ -561,6 +558,8 @@ cv::Mat ArmorDetector::showResult(const cv::Mat& bgr_img) const
         cv::resize(armor_img, resized_armor, cv::Size(half_width, half_height), 0, 0, cv::INTER_LINEAR);
         resized_armor.copyTo(debug_display(cv::Rect(half_width, half_height, half_width, half_height)));
         cv::putText(debug_display, "Armors and Numbers", cv::Point(half_width + 10, half_height + 20), cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 255, 255), 1);
+        // 显示装甲板数量
+        cv::putText(debug_display, "Armors Count: " + std::to_string(armors_.size()), cv::Point(half_width + 10, half_height + 40), cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 255, 255), 1);
         
         // 5. 显示所有数字图像 (整体右侧)
         if (!armors_.empty()) {
@@ -591,6 +590,8 @@ cv::Mat ArmorDetector::showResult(const cv::Mat& bgr_img) const
     else
     {
         cv::Mat result_img = bgr_img.clone();
+        // 显示装甲板数量
+        cv::putText(result_img, "Armors Count: " + std::to_string(armors_.size()), cv::Point(10, 170), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(0, 255, 255), 1);
         // 绘制装甲板
         for (const auto& armor : armors_) {
             std::vector<cv::Point2f> armor_points = {
@@ -607,25 +608,45 @@ cv::Mat ArmorDetector::showResult(const cv::Mat& bgr_img) const
             std::string armor_info = armor.name + " (" + std::to_string(armor.confidence).substr(0, 4) + ")";
             cv::putText(result_img, armor_info, armor.center, cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0, 255, 255), 2);
             // 显示装甲板位姿信息
-            std::string position_info = "X:" + std::to_string(armor.xyz_in_gimbal[0]).substr(0, 5) + 
-                                      " Y:" + std::to_string(armor.xyz_in_gimbal[1]).substr(0, 5) + 
-                                      " Z:" + std::to_string(armor.xyz_in_gimbal[2]).substr(0, 5);
+            std::string position_info = "X:" + std::to_string(armor.xyz_in_world[0]).substr(0, 5) + 
+                                      " Y:" + std::to_string(armor.xyz_in_world[1]).substr(0, 5) + 
+                                      " Z:" + std::to_string(armor.xyz_in_world[2]).substr(0, 5);
             cv::putText(result_img, position_info, 
                        cv::Point(armor.center.x, armor.center.y + 40), 
                        cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(0, 255, 0), 2);
-            std::string angle_info = "Y:" + std::to_string(armor.ypr_in_gimbal[0] * 180.0 / CV_PI).substr(0, 5) + 
-                                    " P:" + std::to_string(armor.ypr_in_gimbal[1] * 180.0 / CV_PI).substr(0, 5) + 
-                                    " R:" + std::to_string(armor.ypr_in_gimbal[2] * 180.0 / CV_PI).substr(0, 5);
+            std::string angle_info = "Y:" + std::to_string(armor.ypr_in_world[0] * 180.0 / CV_PI).substr(0, 5) + 
+                                    " P:" + std::to_string(armor.ypr_in_world[1] * 180.0 / CV_PI).substr(0, 5) + 
+                                    " R:" + std::to_string(armor.ypr_in_world[2] * 180.0 / CV_PI).substr(0, 5);
             cv::putText(result_img, angle_info, 
                        cv::Point(armor.center.x, armor.center.y + 80), 
                        cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(0, 255, 0), 2);
         }
         
-        // 缩放到640*480
-        cv::Mat resized_result;
-        cv::resize(result_img, resized_result, cv::Size(640, 480), 0, 0, cv::INTER_LINEAR);
-     
-        return resized_result;
+        result_img.copyTo(debug_display(cv::Rect(0, 0, display_width - number_img_width, display_height)));
+
+        // 显示所有数字图像 (整体右侧)
+        if (!armors_.empty()) {
+            cv::Mat all_numbers_img = getAllNumbersImage();
+            if (!all_numbers_img.empty()) {
+                cv::Mat resized_numbers_img;
+                cv::Mat colored_numbers_img;
+                
+                // 确保数字图像是三通道的
+                if (all_numbers_img.channels() == 1) {
+                    cv::cvtColor(all_numbers_img, colored_numbers_img, cv::COLOR_GRAY2BGR);
+                } else {
+                    colored_numbers_img = all_numbers_img;
+                }
+                
+                // 计算数字图像区域的尺寸 (右侧垂直条)
+                cv::Rect number_area(display_width - number_img_width, 0, number_img_width, display_height);
+                // 缩放数字图像以适应显示区域
+                cv::resize(colored_numbers_img, resized_numbers_img, cv::Size(number_img_width, display_height), 0, 0, cv::INTER_LINEAR);
+                // 将缩放后的数字图像复制到显示区域
+                resized_numbers_img.copyTo(debug_display(number_area));
+            }
+        }
+        return debug_display;
     }
 }
 
@@ -643,6 +664,19 @@ cv::Mat ArmorDetector::getAllNumbersImage() const
     cv::vconcat(number_imgs, all_num_img);
     return all_num_img;
   }
+}
+
+Eigen::Matrix3d ArmorDetector::R_gimbal2world() const {
+    if (pose_estimator_) {
+        return pose_estimator_->R_gimbal2world();
+    }
+    return Eigen::Matrix3d::Identity();
+}
+
+void ArmorDetector::set_R_gimbal2world(const Eigen::Quaterniond & q) {
+    if (pose_estimator_) {
+        pose_estimator_->set_R_gimbal2world(q);
+    }
 }
 
 }

@@ -6,12 +6,135 @@
 #include "pubsub.hpp"
 #include "serial_types.hpp"
 #include "yaml-cpp/yaml.h"
+#include <mutex>
 
 // 全局变量
 extern std::atomic<bool> running;
 static std::unique_ptr<serial::Serial> serial_port = nullptr;
 static std::atomic<bool> serial_thread_running(false);
 static std::atomic<bool> serial_thread_finished(true);
+
+
+// 串口数据缓存类
+class SerialDataBuffer {
+public:
+    struct DataPoint {
+        Eigen::Quaterniond q;
+        std::chrono::steady_clock::time_point timestamp;
+        double yaw, pitch, roll;
+        int mode;
+        
+        DataPoint() : q(Eigen::Quaterniond::Identity()), timestamp(std::chrono::steady_clock::now()), 
+                      yaw(0), pitch(0), roll(0), mode(0) {}
+                      
+        DataPoint(const ReceivedDataMsg& msg) 
+            : q(eulerToQuaternion(msg.yaw, msg.pitch, msg.roll)), 
+              timestamp(msg.timestamp),
+              yaw(msg.yaw), pitch(msg.pitch), roll(msg.roll),
+              mode(msg.mode) {}
+        
+    private:
+        Eigen::Quaterniond eulerToQuaternion(double yaw, double pitch, double roll) {
+            Eigen::AngleAxisd yawAngle(yaw, Eigen::Vector3d::UnitZ());
+            Eigen::AngleAxisd pitchAngle(pitch, Eigen::Vector3d::UnitY());
+            Eigen::AngleAxisd rollAngle(roll, Eigen::Vector3d::UnitX());
+            
+            Eigen::Quaterniond q = yawAngle * pitchAngle * rollAngle;
+            return q.normalized();
+        }
+    };
+
+private:
+    std::deque<DataPoint> buffer_;
+    static constexpr size_t MAX_BUFFER_SIZE = 100;
+    mutable std::mutex buffer_mutex_;
+
+public:
+    void addData(const ReceivedDataMsg& msg) {
+        std::lock_guard<std::mutex> lock(buffer_mutex_);
+        DataPoint point(msg);
+        buffer_.push_back(point);
+        
+        // 保持缓冲区大小在限制范围内
+        if (buffer_.size() > MAX_BUFFER_SIZE) {
+            buffer_.pop_front();
+        }
+    }
+    
+    Eigen::Quaterniond getDataAt(std::chrono::steady_clock::time_point timestamp) {
+        std::lock_guard<std::mutex> lock(buffer_mutex_);
+        
+        if (buffer_.empty()) {
+            return Eigen::Quaterniond::Identity();
+        }
+        
+        // 如果时间戳早于第一个数据点，返回第一个数据点的姿态
+        if (timestamp <= buffer_.front().timestamp) {
+            return buffer_.front().q;
+        }
+        
+        // 如果时间戳晚于最后一个数据点，返回最后一个数据点的姿态
+        if (timestamp >= buffer_.back().timestamp) {
+            return buffer_.back().q;
+        }
+        
+        // 查找时间戳附近的两个数据点
+        DataPoint data_ahead, data_behind;
+        bool found = false;
+        
+        for (const auto& data : buffer_) {
+            if (data.timestamp >= timestamp) {
+                data_behind = data;
+                found = true;
+                break;
+            }
+            data_ahead = data;
+        }
+        
+        // 如果没有找到合适的数据点，返回单位四元数
+        if (!found) {
+            return Eigen::Quaterniond::Identity();
+        }
+        
+        // 四元数球面线性插值(Slerp)
+        Eigen::Quaterniond q_a = data_ahead.q.normalized();
+        Eigen::Quaterniond q_b = data_behind.q.normalized();
+        auto t_a = data_ahead.timestamp;
+        auto t_b = data_behind.timestamp;
+        
+        // 避免除零错误
+        if (t_b <= t_a) {
+            return q_b;
+        }
+        
+        std::chrono::duration<double> t_ab = t_b - t_a;
+        std::chrono::duration<double> t_ac = timestamp - t_a;
+        
+        // 插值参数
+        double k = t_ac.count() / t_ab.count();
+        k = std::max(0.0, std::min(1.0, k)); // 限制在[0,1]范围内
+        
+        Eigen::Quaterniond q_c = q_a.slerp(k, q_b).normalized();
+        return q_c;
+    }
+    
+    bool isEmpty() const {
+        std::lock_guard<std::mutex> lock(buffer_mutex_);
+        return buffer_.empty();
+    }
+    
+    size_t size() const {
+        std::lock_guard<std::mutex> lock(buffer_mutex_);
+        return buffer_.size();
+    }
+};
+
+// 串口数据缓存实例
+static SerialDataBuffer serial_data_buffer;
+
+Eigen::Quaterniond getSerialDataAt(std::chrono::steady_clock::time_point timestamp) {
+    return serial_data_buffer.getDataAt(timestamp);
+}
 
 // 虚拟串口参数
 struct VirtualSerialParams {
@@ -124,6 +247,9 @@ void serialThreadFunc() {
                     msg.roll = static_cast<double>(packet->roll)   * M_PI / 180.0;
                     msg.mode = packet->mode;
                     msg.timestamp = std::chrono::steady_clock::now();
+
+                    // 添加到数据缓存
+                    serial_data_buffer.addData(msg);
                     
                     // 发布消息
                     serialDataPublisher.publish(msg);
@@ -209,6 +335,9 @@ void virtualSerialThreadFunc() {
         msg.roll = params.roll   * M_PI / 180.0;
         msg.mode = params.mode;
         msg.timestamp = std::chrono::steady_clock::now();
+
+        // 添加到数据缓存
+        serial_data_buffer.addData(msg);
         
         // 发布消息
         serialDataPublisher.publish(msg);

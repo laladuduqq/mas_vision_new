@@ -22,5 +22,5 @@ record:
   fps: 30.0
 mode: video  # camera or video
 video:
-  path: testred.mp4
+  path: test3.mp4
   fps: 120.0

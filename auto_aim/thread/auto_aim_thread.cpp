@@ -2,7 +2,7 @@
  * @Author: laladuduqq 2807523947@qq.com
  * @Date: 2025-08-22 23:15:00
  * @LastEditors: laladuduqq 2807523947@qq.com
- * @LastEditTime: 2025-08-29 18:25:55
+ * @LastEditTime: 2025-08-29 22:18:54
  * @FilePath: /mas_vision_new/auto_aim/thread/auto_aim_thread.cpp
  * @Description: 自动瞄准线程实现
  */
@@ -98,12 +98,14 @@ void autoAimThreadFunc() {
                 auto processStartTime = std::chrono::steady_clock::now();
                 // 检测装甲板
                 auto armors = armor_detector->ArmorDetect(latest_frame.frame);
-                armor_detector->showResult(latest_frame.frame);
+                cv::Mat armor_detector_show = latest_frame.frame.clone();
+                armor_detector->showResult(armor_detector_show);
                 // 跟踪装甲板
                 auto timestamp = std::chrono::steady_clock::now();
                 auto tracked_targets = armor_tracker->track(armors, timestamp);
                 // 显示跟踪信息
-                armor_tracker->drawDebug(latest_frame.frame);
+                cv::Mat armor_track_show = latest_frame.frame.clone();
+                armor_tracker->drawDebug(armor_track_show);
             }
         }
     }

@@ -2,7 +2,7 @@
  * @Author: laladuduqq 2807523947@qq.com
  * @Date: 2025-08-28 12:52:26
  * @LastEditors: laladuduqq 2807523947@qq.com
- * @LastEditTime: 2025-08-29 12:45:11
+ * @LastEditTime: 2025-08-29 19:52:30
  * @FilePath: /mas_vision_new/auto_aim/armor_tracking/armor_track.hpp
  * @Description: 
  */
@@ -31,7 +31,7 @@ public:
   std::list<Target> track(std::vector<Armor> & armors, std::chrono::steady_clock::time_point t);
     
   // 添加调试绘制函数
-  void drawDebug(cv::Mat& bgr_img);
+  void drawDebug(const cv::Mat& bgr_img);
 
   /**
     * @brief 获取云台到世界坐标系的旋转矩阵

@@ -2,7 +2,7 @@
  * @Author: laladuduqq 2807523947@qq.com
  * @Date: 2025-07-28 18:10:53
  * @LastEditors: laladuduqq 2807523947@qq.com
- * @LastEditTime: 2025-08-22 20:26:59
+ * @LastEditTime: 2025-08-29 19:12:27
  * @FilePath: /mas_vision_new/hikcamera/thread/cam_thread.cpp
  * @Description:
  */
@@ -119,9 +119,8 @@ void cameraThreadFunc() {
                     if (displayEnabled) {
                         // 显示图像
                         cv::Mat resizedDrawingFrame;
-                        cv::resize(frame, resizedDrawingFrame, cv::Size(640, 480), 0, 0, cv::INTER_LINEAR);
+                        cv::resize(frame, resizedDrawingFrame, cv::Size(frame.cols/2, frame.rows/2), 0, 0, cv::INTER_LINEAR);
                         cv::imshow("Camera", resizedDrawingFrame);
-                        cv::waitKey(1);
                     }
                 } else {
                     // 视频读取失败

@@ -2,7 +2,7 @@
  * @Author: laladuduqq 2807523947@qq.com
  * @Date: 2025-08-26 21:46:40
  * @LastEditors: laladuduqq 2807523947@qq.com
- * @LastEditTime: 2025-08-27 22:41:14
+ * @LastEditTime: 2025-08-29 19:26:49
  * @FilePath: /mas_vision_new/auto_aim/armor_detector/armor_pose.cpp
  * @Description: 装甲板姿态估计模块实现
  */
@@ -124,6 +124,46 @@ bool ArmorPoseEstimator::estimatePose(Armor& armor) {
             return false;
         }
         
+        // 添加对输入参数的详细检查
+        // 检查object_points是否有效
+        if (object_points.empty()) {
+            ULOG_WARNING_TAG("ArmorPoseEstimator", "Object points are empty");
+            return false;
+        }
+        
+        // 检查armor.points是否有效
+        if (armor.points.empty()) {
+            ULOG_WARNING_TAG("ArmorPoseEstimator", "Image points are empty");
+            return false;
+        }
+        
+        // 检查相机内参矩阵是否有效
+        if (camera_matrix_.empty() || camera_matrix_.cols != 3 || camera_matrix_.rows != 3) {
+            ULOG_WARNING_TAG("ArmorPoseEstimator", "Invalid camera matrix");
+            return false;
+        }
+        
+        // 检查畸变系数是否有效
+        if (dist_coeffs_.empty()) {
+            ULOG_WARNING_TAG("ArmorPoseEstimator", "Invalid distortion coefficients");
+            return false;
+        }
+        
+        // 检查所有点坐标是否有效（非无穷大、非NaN）
+        for (const auto& point : object_points) {
+            if (!std::isfinite(point.x) || !std::isfinite(point.y) || !std::isfinite(point.z)) {
+                ULOG_WARNING_TAG("ArmorPoseEstimator", "Invalid object point coordinates");
+                return false;
+            }
+        }
+        
+        for (const auto& point : armor.points) {
+            if (!std::isfinite(point.x) || !std::isfinite(point.y)) {
+                ULOG_WARNING_TAG("ArmorPoseEstimator", "Invalid image point coordinates");
+                return false;
+            }
+        }
+        
         // 使用solvePnP计算姿态
         cv::Vec3d rvec, tvec;
         bool success = cv::solvePnP(object_points, armor.points, camera_matrix_, dist_coeffs_, 
@@ -134,7 +174,6 @@ bool ArmorPoseEstimator::estimatePose(Armor& armor) {
             return false;
         }
         
-
         // 3. 坐标变换：相机系 → 云台系 → 世界系
         Eigen::Vector3d xyz_in_camera;
         cv::cv2eigen(tvec, xyz_in_camera);

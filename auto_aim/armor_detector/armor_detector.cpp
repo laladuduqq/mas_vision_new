@@ -2,7 +2,7 @@
  * @Author: laladuduqq 2807523947@qq.com
  * @Date: 2025-08-22 13:47:12
  * @LastEditors: laladuduqq 2807523947@qq.com
- * @LastEditTime: 2025-08-29 17:11:17
+ * @LastEditTime: 2025-08-29 19:28:52
  * @FilePath: /mas_vision_new/auto_aim/armor_detector/armor_detector.cpp
  * @Description: 
  */
@@ -81,6 +81,11 @@ ArmorDetector::ArmorDetector()
 
 std::vector<Armor> ArmorDetector::ArmorDetect(const cv::Mat & bgr_img)
 {   
+  // 检查输入图像是否有效
+  if (bgr_img.empty() || bgr_img.cols <= 0 || bgr_img.rows <= 0) {
+    ULOG_WARNING_TAG("armor_detector", "Invalid input image");
+    return armors_;
+  }
   // 转换为灰度图
   cv::Mat gray;
   if (bgr_img.channels() == 3) {
@@ -463,6 +468,12 @@ void ArmorDetector::showResult(const cv::Mat& bgr_img) const
 {
     if (debug_)
     {
+        // 检查输入图像是否有效
+        if (bgr_img.empty() || bgr_img.cols <= 0 || bgr_img.rows <= 0) {
+            ULOG_WARNING_TAG("armor_detector", "Invalid input image for showResult");
+            return;
+        }
+
         // 显示二值化图像（尺寸为原图的一半）
         cv::Mat gray_img;
         if (bgr_img.channels() == 3) {
@@ -526,7 +537,7 @@ void ArmorDetector::showResult(const cv::Mat& bgr_img) const
         // 调整结果显示图像大小
         cv::Mat resized_result;
         cv::resize(result_img, resized_result, cv::Size(bgr_img.cols/2, bgr_img.rows/2));
-        cv::imshow("Result Image", resized_result);
+        cv::imshow("Armor Detector Result", resized_result);
     }
 }
 

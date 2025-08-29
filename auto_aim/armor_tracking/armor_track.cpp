@@ -2,7 +2,7 @@
  * @Author: laladuduqq 2807523947@qq.com
  * @Date: 2025-08-28 12:52:18
  * @LastEditors: laladuduqq 2807523947@qq.com
- * @LastEditTime: 2025-08-29 18:23:39
+ * @LastEditTime: 2025-08-29 19:52:17
  * @FilePath: /mas_vision_new/auto_aim/armor_tracking/armor_track.cpp
  * @Description: 
  */
@@ -97,12 +97,16 @@ std::list<Target> Tracker::track(std::vector<Armor> & armors, std::chrono::stead
   return targets;
 }
 
-void Tracker::drawDebug(cv::Mat& bgr_img)
+void Tracker::drawDebug(const cv::Mat& bgr_img)
 {
-  cv::Mat img = bgr_img.clone();
+  // 检查输入图像是否有效
+  if (bgr_img.empty() || bgr_img.cols <= 0 || bgr_img.rows <= 0) {
+    ULOG_WARNING_TAG("tracker", "Invalid input image for drawDebug");
+    return;
+  }
   
   // 绘制跟踪状态
-  cv::putText(img, "Tracker State: " + state_, cv::Point(10, 30), 
+  cv::putText(bgr_img, "Tracker State: " + state_, cv::Point(10, 30), 
               cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(0, 255, 0), 2);
               
     // 绘制预测的装甲板位置（仅在tracking或temp_lost状态）
@@ -110,26 +114,26 @@ void Tracker::drawDebug(cv::Mat& bgr_img)
       // 显示目标信息
       if (!target_.name.empty()) {
         // 绘制目标名称
-        cv::putText(img, "Target: " + target_.name, cv::Point(10, 60), 
+        cv::putText(bgr_img, "Target: " + target_.name, cv::Point(10, 60), 
                     cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(0, 255, 0), 2);
         
         // 绘制目标装甲板类型
-        cv::putText(img, "Type: " + ARMOR_TYPES[target_.armor_type], cv::Point(10, 90), 
+        cv::putText(bgr_img, "Type: " + ARMOR_TYPES[target_.armor_type], cv::Point(10, 90), 
                     cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(0, 255, 0), 2);
         
         // 绘制目标优先级
-        cv::putText(img, "Priority: " + std::to_string(target_.priority), cv::Point(10, 120), 
+        cv::putText(bgr_img, "Priority: " + std::to_string(target_.priority), cv::Point(10, 120), 
                     cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(0, 255, 0), 2);
         
         // 绘制是否收敛
         std::string converge_status = target_.convergened() ? "Converged" : "Not Converged";
-        cv::putText(img, "Status: " + converge_status, cv::Point(10, 180), 
+        cv::putText(bgr_img, "Status: " + converge_status, cv::Point(10, 180), 
                     cv::FONT_HERSHEY_SIMPLEX, 0.7, 
                     target_.convergened() ? cv::Scalar(0, 255, 0) : cv::Scalar(0, 0, 255), 2);
         
         // 绘制是否发生跳跃
         std::string jump_status = target_.jumped ? "Jumped" : "Not Jumped";
-        cv::putText(img, "Jump: " + jump_status, cv::Point(10, 210), 
+        cv::putText(bgr_img, "Jump: " + jump_status, cv::Point(10, 210), 
                     cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(0, 255, 0), 2);
       std::vector<Eigen::Vector4d> armor_xyza_list = target_.armor_xyza_list();
       for (size_t i = 0; i < armor_xyza_list.size(); ++i) {
@@ -140,13 +144,13 @@ void Tracker::drawDebug(cv::Mat& bgr_img)
             xyza.head(3), xyza[3], target_.armor_type, target_.name);
           
           for (size_t j = 0; j < image_points.size(); ++j) {
-            cv::line(img, image_points[j], image_points[(j+1) % image_points.size()], 
+            cv::line(bgr_img, image_points[j], image_points[(j+1) % image_points.size()], 
             cv::Scalar(0, 255, 0), 2);
           }
           
           // 标记装甲板ID
           if (!image_points.empty()) {
-            cv::putText(img, std::to_string(i), image_points[0], 
+            cv::putText(bgr_img, std::to_string(i), image_points[0], 
                         cv::FONT_HERSHEY_SIMPLEX, 0.6, cv::Scalar(255, 0, 0), 2);
           }
         }
@@ -155,15 +159,15 @@ void Tracker::drawDebug(cv::Mat& bgr_img)
       // 显示EKF状态信息
       if (target_.ekf_x().size() >= 11) {
         const Eigen::VectorXd& x = target_.ekf_x();
-        cv::putText(img, cv::format("Pos: (%.2f, %.2f, %.2f)", x[0], x[2], x[4]), 
+        cv::putText(bgr_img, cv::format("Pos: (%.2f, %.2f, %.2f)", x[0], x[2], x[4]), 
                     cv::Point(10, 240), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(255, 255, 0), 2);
-        cv::putText(img, cv::format("Vel: (%.2f, %.2f, %.2f)", x[1], x[3], x[5]), 
+        cv::putText(bgr_img, cv::format("Vel: (%.2f, %.2f, %.2f)", x[1], x[3], x[5]), 
                     cv::Point(10, 280), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(255, 255, 0), 2);
-        cv::putText(img, cv::format("Angle: %.2f rad", x[6]), 
+        cv::putText(bgr_img, cv::format("Angle: %.2f rad", x[6]), 
                     cv::Point(10, 320), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(255, 255, 0), 2);
-        cv::putText(img, cv::format("AngVel: %.2f", x[7]), 
+        cv::putText(bgr_img, cv::format("AngVel: %.2f", x[7]), 
                     cv::Point(10, 360), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(255, 255, 0), 2);
-        cv::putText(img, cv::format("Radius: %.3f", x[8]), 
+        cv::putText(bgr_img, cv::format("Radius: %.3f", x[8]), 
                     cv::Point(10, 380), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(255, 255, 0), 2);
       }
       
@@ -171,26 +175,26 @@ void Tracker::drawDebug(cv::Mat& bgr_img)
       // 获取最新的装甲板位姿
       if (!armor_xyza_list.empty()) {
         const Eigen::Vector4d& latest_armor = armor_xyza_list.front();
-        cv::putText(img, cv::format("Armor Pos: (%.2f, %.2f, %.2f)", 
+        cv::putText(bgr_img, cv::format("Armor Pos: (%.2f, %.2f, %.2f)", 
                                     latest_armor[0], latest_armor[1], latest_armor[2]), 
                     cv::Point(10, 420), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(0, 255, 255), 2);
-        cv::putText(img, cv::format("Armor Yaw: %.2f rad (%.1f deg)", 
+        cv::putText(bgr_img, cv::format("Armor Yaw: %.2f rad (%.1f deg)", 
                                     latest_armor[3], latest_armor[3] * 180.0 / CV_PI), 
                     cv::Point(10, 460), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(0, 255, 255), 2);
       }
     }
   } else if (state_ != "lost") {
     // 当没有目标但不是lost状态时，显示提示信息
-    cv::putText(img, "Searching target...", cv::Point(10, 60), 
+    cv::putText(bgr_img, "Searching target...", cv::Point(10, 60), 
                 cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(255, 255, 0), 2);
   } else {
     // 当没有追踪目标时，显示提示信息
-    cv::putText(img, "No target tracked", cv::Point(10, 60), 
+    cv::putText(bgr_img, "No target tracked", cv::Point(10, 60), 
                 cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(0, 0, 255), 2);
   }
   // 创建缩小版图像用于显示
   cv::Mat resized_img;
-  cv::resize(img, resized_img, cv::Size(bgr_img.cols/2, bgr_img.rows/2));
+  cv::resize(bgr_img, resized_img, cv::Size(bgr_img.cols/2, bgr_img.rows/2));
   cv::imshow("Tracker Debug", resized_img);
 }
 void Tracker::state_machine(bool found)

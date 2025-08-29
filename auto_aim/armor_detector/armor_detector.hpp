@@ -2,7 +2,7 @@
  * @Author: laladuduqq 2807523947@qq.com
  * @Date: 2025-08-22 13:47:26
  * @LastEditors: laladuduqq 2807523947@qq.com
- * @LastEditTime: 2025-08-27 10:05:20
+ * @LastEditTime: 2025-08-29 16:07:50
  * @FilePath: /mas_vision_new/auto_aim/armor_detector/armor_detector.hpp
  * @Description: 
  */
@@ -29,20 +29,9 @@ class ArmorDetector
     /**
      * @brief 显示识别结果
      * @param bgr_img 输入图像
-     * @return 显示结果
+     * @return void
      */
-    cv::Mat showResult(const cv::Mat& bgr_img) const;
-        /**
-     * @brief 获取云台到世界坐标系的旋转矩阵
-     * @return 旋转矩阵
-     */
-    Eigen::Matrix3d R_gimbal2world() const;
-
-    /**
-     * @brief 设置云台到世界坐标系的旋转矩阵
-     * @param q 四元数
-     */
-    void set_R_gimbal2world(const Eigen::Quaterniond & q);
+    void showResult(const cv::Mat& bgr_img) const;
 
     private:
     //识别参数
@@ -72,8 +61,6 @@ class ArmorDetector
     // 数字识别器
     std::unique_ptr<NumberClassifier> classifier_;
     double confidence;
-    // 姿态估计器
-    std::unique_ptr<ArmorPoseEstimator> pose_estimator_;
 
     // 辅助函数
     void lightbar_points_corrector(LightBar & lightbar, const cv::Mat & gray_img) const;

@@ -7,6 +7,7 @@ add_library(rm_utils STATIC
     ${CMAKE_CURRENT_SOURCE_DIR}/recorder/recorder.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/video/video.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/math/rmmath.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/math/extended_kalman_filter.cpp
 )
 
 find_package(OpenCV REQUIRED)

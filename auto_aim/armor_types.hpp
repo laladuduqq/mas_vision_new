@@ -2,7 +2,7 @@
  * @Author: laladuduqq 2807523947@qq.com
  * @Date: 2025-08-22 21:54:23
  * @LastEditors: laladuduqq 2807523947@qq.com
- * @LastEditTime: 2025-08-26 22:00:14
+ * @LastEditTime: 2025-08-28 12:04:57
  * @FilePath: /mas_vision_new/auto_aim/armor_types.hpp
  * @Description: 
  */
@@ -48,6 +48,15 @@ namespace auto_aim
     const std::vector<std::string> ARMOR_NAMES = {"1",    "2",     "3", "4",     "5",
                                                 "sentry", "outpost", "base",  "negative"};
 
+    enum ArmorPriority
+    {
+        first = 1,
+        second,
+        third,
+        forth,
+        fifth
+    };
+
 
     struct LightBar : public cv::Rect
     {
@@ -75,6 +84,7 @@ namespace auto_aim
         std::vector<cv::Point2f> points;
         // 装甲板类型
         ArmorType type;
+        ArmorPriority priority;
         // 数字识别部分
         cv::Mat number_img;
         std::string name;

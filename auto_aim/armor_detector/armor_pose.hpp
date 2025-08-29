@@ -2,7 +2,7 @@
  * @Author: laladuduqq 2807523947@qq.com
  * @Date: 2025-08-26 21:46:40
  * @LastEditors: laladuduqq 2807523947@qq.com
- * @LastEditTime: 2025-08-27 11:59:03
+ * @LastEditTime: 2025-08-28 23:34:05
  * @FilePath: /mas_vision_new/auto_aim/armor_detector/armor_pose.hpp
  * @Description: 装甲板姿态估计模块
  */
@@ -55,6 +55,15 @@ public:
      * @param q 旋转矩阵
      */
     void set_R_gimbal2world(const Eigen::Quaterniond & q);
+    /**
+     * @brief 投影装甲板
+     * @param xyz_in_world 装甲板在世界坐标系下的3D点
+     * @param yaw 装甲板偏航角
+     * @param type 装甲板类型
+     * @param name 装甲板名称
+     * @return 投影后的装甲板点集
+     */
+    std::vector<cv::Point2f> reproject_armor(const Eigen::Vector3d & xyz_in_world, double yaw, ArmorType type, std::string armor_name) const;
 
 private:
     // 相机参数
@@ -82,15 +91,6 @@ private:
      * @return 对应的3D点集
      */
     const std::vector<cv::Point3f>& getArmorPoints(ArmorType type) const;
-    /**
-     * @brief 投影装甲板
-     * @param xyz_in_world 装甲板在世界坐标系下的3D点
-     * @param yaw 装甲板偏航角
-     * @param type 装甲板类型
-     * @param name 装甲板名称
-     * @return 投影后的装甲板点集
-     */
-    std::vector<cv::Point2f> reproject_armor(const Eigen::Vector3d & xyz_in_world, double yaw, ArmorType type, std::string armor_name) const;
     /**
      * @brief 优化装甲板偏航角
      * @param armor 装甲板对象

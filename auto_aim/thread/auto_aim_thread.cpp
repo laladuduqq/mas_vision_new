@@ -2,11 +2,12 @@
  * @Author: laladuduqq 2807523947@qq.com
  * @Date: 2025-08-22 23:15:00
  * @LastEditors: laladuduqq 2807523947@qq.com
- * @LastEditTime: 2025-08-27 10:14:31
+ * @LastEditTime: 2025-08-29 18:25:55
  * @FilePath: /mas_vision_new/auto_aim/thread/auto_aim_thread.cpp
  * @Description: 自动瞄准线程实现
  */
 #include "armor_detector.hpp"
+#include "armor_track.hpp"
 #include "pubsub.hpp"
 #include "performance_monitor.hpp"
 #include "ulog.hpp"
@@ -24,6 +25,7 @@ extern mas_utils::PerformanceMonitor perfMonitor;
 static std::atomic<bool> auto_aim_thread_running(false);
 static std::atomic<bool> auto_aim_thread_finished(true);
 static std::unique_ptr<auto_aim::ArmorDetector> armor_detector = nullptr;
+static std::unique_ptr<auto_aim::Tracker> armor_tracker = nullptr;
 
 // 自动瞄准线程函数
 void autoAimThreadFunc() {
@@ -39,6 +41,16 @@ void autoAimThreadFunc() {
         ULOG_INFO_TAG("AutoAim", "Armor detector initialized successfully");
     } catch (const std::exception& e) {
         ULOG_ERROR_TAG("AutoAim", "Failed to initialize armor detector: %s", e.what());
+        auto_aim_thread_finished = true;
+        return;
+    }
+
+    // 初始化装甲板跟踪器
+    try {
+        armor_tracker = std::make_unique<auto_aim::Tracker>("config/auto_aim.yaml");
+        ULOG_INFO_TAG("AutoAim", "Armor tracker initialized successfully");
+    } catch (const std::exception& e) {
+        ULOG_ERROR_TAG("AutoAim", "Failed to initialize armor tracker: %s", e.what());
         auto_aim_thread_finished = true;
         return;
     }
@@ -67,13 +79,6 @@ void autoAimThreadFunc() {
         });
     
     ULOG_INFO_TAG("AutoAim", "Subscribed to camera and serial data");
-
-    // FPS计算相关变量
-    auto lastTime = std::chrono::steady_clock::now();
-    int frameCount = 0;
-    double fps = 0.0;
-    // 处理时间计算
-    double processTime = 0.0;
     
     // 主处理循环
     while (running.load() && auto_aim_thread_running.load()) {
@@ -82,50 +87,23 @@ void autoAimThreadFunc() {
             // 重置IMU就绪标志
             imu_ready = false;
             Eigen::Quaterniond q = getSerialDataAt(latest_imu_data.timestamp);
-            armor_detector->set_R_gimbal2world(q);
+            armor_tracker->set_R_gimbal2world(q);
         }
         // 检查是否有新的图像数据
         if (frame_ready.load()) {
             // 重置帧就绪标志
             frame_ready = false;
-            
             // 执行装甲板检测
             if (armor_detector && !latest_frame.frame.empty()) {
                 auto processStartTime = std::chrono::steady_clock::now();
                 // 检测装甲板
                 auto armors = armor_detector->ArmorDetect(latest_frame.frame);
-                cv::Mat display = armor_detector->showResult(latest_frame.frame);
-                // 计算处理时间
-                auto processEndTime = std::chrono::steady_clock::now();
-                processTime = std::chrono::duration<double, std::milli>(processEndTime - processStartTime).count();
-                // 计算FPS
-                frameCount++;
-                auto currentTime = std::chrono::steady_clock::now();
-                double elapsedTime = std::chrono::duration<double>(currentTime - lastTime).count();
-                if (elapsedTime >= 1.0) {
-                    fps = frameCount / elapsedTime;
-                    frameCount = 0;
-                    lastTime = currentTime;
-                }
-                std::string fps_info = "FPS: " + std::to_string(static_cast<int>(fps));
-                cv::putText(display,fps_info,cv::Point(10, 60),cv::FONT_HERSHEY_SIMPLEX,0.5,cv::Scalar(0, 255, 0),1);
-                std::string process_info = "Process Time: " + std::to_string(processTime) + " ms";
-                cv::putText(display,process_info,cv::Point(10, 35),cv::FONT_HERSHEY_SIMPLEX,0.5,cv::Scalar(0, 255, 0),1);
-                                // 显示IMU数据
-                std::stringstream imu_info;
-                imu_info << std::fixed << std::setprecision(2);
-                imu_info << "IMU Yaw: " << latest_imu_data.yaw;
-                cv::putText(display, imu_info.str(), cv::Point(10, 85), cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 255, 0), 1);
-                
-                std::stringstream imu_info2;
-                imu_info2 << std::fixed << std::setprecision(2);
-                imu_info2 << "Pitch: " << latest_imu_data.pitch << " Roll: " << latest_imu_data.roll;
-                cv::putText(display, imu_info2.str(), cv::Point(10, 110), cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 255, 0), 1);
-                
-                // 显示模式信息
-                std::string mode_info = "Mode: " + std::to_string(latest_imu_data.mode);
-                cv::putText(display, mode_info, cv::Point(10, 135), cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 255, 0), 1);
-                cv::imshow("Armor Detection Result", display);
+                armor_detector->showResult(latest_frame.frame);
+                // 跟踪装甲板
+                auto timestamp = std::chrono::steady_clock::now();
+                auto tracked_targets = armor_tracker->track(armors, timestamp);
+                // 显示跟踪信息
+                armor_tracker->drawDebug(latest_frame.frame);
             }
         }
     }

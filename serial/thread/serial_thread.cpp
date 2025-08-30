@@ -3,7 +3,7 @@
 #include <atomic>
 #include <chrono>
 #include "ulog.hpp"
-#include "pubsub.hpp"
+#include "topicqueue.hpp"
 #include "serial_types.hpp"
 #include "yaml-cpp/yaml.h"
 #include <mutex>
@@ -11,7 +11,8 @@
 // 全局变量
 extern std::atomic<bool> running;
 
-
+// 创建一个话题实例
+rm_utils::TopicQueue<ReceivedDataMsg> serial_queue(10);  // 每个话题最多存储10个消息
 static std::thread serial_thread;
 static std::unique_ptr<serial::Serial> serial_port = nullptr;
 static std::atomic<bool> serial_thread_running(false);
@@ -221,9 +222,6 @@ void serialThreadFunc() {
         return;
     }
     
-    // 创建发布者
-    Publisher<ReceivedDataMsg> serialDataPublisher("serial/data");
-    
     // 读取数据循环
     std::vector<uint8_t> buffer(packet_size);
     
@@ -250,7 +248,7 @@ void serialThreadFunc() {
                     serial_data_buffer.addData(msg);
                     
                     // 发布消息
-                    serialDataPublisher.publish(msg);
+                    serial_queue.push("serial/data", msg);
                     
                     ULOG_DEBUG_TAG("Serial", "Received valid packet - Yaw: %.2f, Pitch: %.2f, Roll: %.2f, Mode: %d", 
                                   msg.yaw, msg.pitch, msg.roll, msg.mode);
@@ -307,9 +305,6 @@ void virtualSerialThreadFunc() {
     
     ULOG_INFO_TAG("Serial", "Virtual serial mode enabled with update rate: %d Hz", params.update_rate);
     
-    // 创建发布者
-    Publisher<ReceivedDataMsg> serialDataPublisher("serial/data");
-    
     auto start_time = std::chrono::steady_clock::now();
     int loop_count = 0;
     
@@ -334,7 +329,7 @@ void virtualSerialThreadFunc() {
         serial_data_buffer.addData(msg);
         
         // 发布消息
-        serialDataPublisher.publish(msg);
+        serial_queue.push("serial/data", msg);
         
         loop_count++;
         

@@ -2,27 +2,23 @@
  * @Author: laladuduqq 2807523947@qq.com
  * @Date: 2025-08-17 16:17:20
  * @LastEditors: laladuduqq 2807523947@qq.com
- * @LastEditTime: 2025-08-26 21:20:25
+ * @LastEditTime: 2025-08-30 22:49:13
  * @FilePath: /mas_vision_new/applications/main.cpp
  * @Description: 
  */
-#include "pubsub.hpp"
 #include "ulog.hpp"
 #include <thread>
 #include <atomic>
 #include <signal.h>
 #include <sys/syscall.h>
 #include <unistd.h>
-
+#include <string> 
 
 
 // 声明线程函数
 // camera
 void startCameraThread();
 void stopCameraThread();
-// pubsub
-void startPubSubThread();
-void stopPubSubThread();
 // serial
 void startSerialThread();
 void stopSerialThread();
@@ -61,9 +57,6 @@ int main(int argc, char* argv[])
 
     // 初始化ulog日志系统
     ULOG_INIT_CONSOLE_AND_FILE(ULOG_INFO_LEVEL, ULOG_TRACE_LEVEL);
-    
-    // 启动PubSub消息中心线程
-    startPubSubThread();
 
     // 启动相机线程
     startCameraThread();
@@ -91,9 +84,6 @@ int main(int argc, char* argv[])
 
     // 停止相机线程
     stopCameraThread();
-
-    // 停止PubSub消息中心
-    stopPubSubThread();
 
     ULOG_INFO_TAG("main","Application exiting");
 

@@ -2,7 +2,7 @@
  * @Author: laladuduqq 2807523947@qq.com
  * @Date: 2025-07-28 18:10:53
  * @LastEditors: laladuduqq 2807523947@qq.com
- * @LastEditTime: 2025-08-30 22:05:57
+ * @LastEditTime: 2025-08-30 22:41:16
  * @FilePath: /mas_vision_new/hikcamera/thread/cam_thread.cpp
  * @Description:
  */
@@ -11,7 +11,7 @@
 #include <opencv2/opencv.hpp>
 #include <atomic>
 #include <thread>
-#include "pubsub.hpp"
+#include "topicqueue.hpp"
 #include "ulog.hpp"
 #include "recorder.hpp"
 #include "video.hpp"  
@@ -19,6 +19,8 @@
 
 extern std::atomic<bool> running;
 
+// 创建一个话题队列实例
+rm_utils::TopicQueue<CameraFrame> image_queue(10);  // 每个话题最多存储10帧图像
 static std::thread camera_thread;
 static bool displayEnabled = false;
 static std::atomic<bool> camera_thread_running(false);
@@ -73,9 +75,6 @@ void cameraThreadFunc() {
         ULOG_ERROR_TAG("Camera", "Failed to load camera config: %s", e.what());
     };
     
-    // 创建图像发布者
-    Publisher<CameraFrame> imagePublisher("camera/image");
-    
     bool initSuccess = false;
     
     // 根据配置选择模式
@@ -102,8 +101,8 @@ void cameraThreadFunc() {
                     auto timestamp = std::chrono::steady_clock::now();
                     // 创建带时间戳的帧
                     CameraFrame timeCameraFrame{frame, timestamp};
-                    // 发布图像消息到PubSub系统
-                    imagePublisher.publish(timeCameraFrame);
+                    // 发布图像消息
+                    image_queue.push("image/camera", timeCameraFrame);
                     
                     // 如果启用了录制，进行录制
                     if (recordEnabled && recorder) {
@@ -145,8 +144,8 @@ void cameraThreadFunc() {
                     auto timestamp = std::chrono::steady_clock::now();
                     // 创建带时间戳的帧
                     CameraFrame timeCameraFrame{frame, timestamp};
-                    // 发布图像消息到PubSub系统
-                    imagePublisher.publish(timeCameraFrame);
+                    // 发布图像消息
+                    image_queue.push("image/camera", timeCameraFrame);
                     
                     // 如果启用了录制，进行录制
                     if (recordEnabled && recorder) {

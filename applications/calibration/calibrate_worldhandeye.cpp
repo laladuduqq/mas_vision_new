@@ -2,7 +2,7 @@
  * @Author: laladuduqq 2807523947@qq.com
  * @Date: 2025-08-26 17:09:26
  * @LastEditors: laladuduqq 2807523947@qq.com
- * @LastEditTime: 2025-08-30 21:47:36
+ * @LastEditTime: 2025-08-30 22:57:01
  * @FilePath: /mas_vision_new/applications/calibration/calibrate_worldhandeye.cpp
  * @Description: 
  */
@@ -22,8 +22,8 @@
 #include <opencv2/core/eigen.hpp>
 
 #include "HikCamera.h"
+#include "topicqueue.hpp"
 #include "ulog.hpp"
-#include "pubsub.hpp"
 #include "serial.h"
 #include "rmmath.hpp"
 #include "serial_types.hpp"
@@ -32,14 +32,14 @@
 extern std::atomic<bool> running;
 
 // 声明线程函数
-void startPubSubThread();
-void stopPubSubThread();
 void startCameraThread();
 void stopCameraThread();
 void startSerialThread();
 void stopSerialThread();
 
 // 定义内部变量
+static rm_utils::TopicQueue<CameraFrame> image_queue(10);  // 每个话题最多存储10帧图像
+static rm_utils::TopicQueue<ReceivedDataMsg> serial_queue(10); // 每个话题最多存储10条数据
 static CameraFrame SubImage;
 static std::atomic<bool> imagesubReady(false);
 static std::atomic<bool> pattern_found(false);
@@ -134,11 +134,6 @@ private:
         std::cout << "开始捕获标定图像...\n";
         std::cout << "请将棋盘格放置在相机视野内的不同位置和角度\n";
         std::cout << "确保云台处于不同姿态\n";
-        std::cout << "按回车键继续...\n";
-        std::cin.get(); // 等待用户输入
-
-        // 启动PubSub消息中心线程
-        startPubSubThread();
 
         // 启动相机线程
         startCameraThread();
@@ -151,16 +146,21 @@ private:
         pattern_found = false;
         gimbal_data_ready = false;
         
-        // 创建订阅者
-        Subscriber subscriber;
+        CameraFrame frame;
+        if (image_queue.pop("image/camera", frame)){
+            SubImage.frame = frame.frame.clone();
+            SubImage.timestamp = frame.timestamp;
+            imagesubReady = true;
+        }
 
-        // 订阅相机图像
-        subscriber.subscribe<CameraFrame>("camera/image", [](const CameraFrame& frame) {
-            processWorldHandeyeImage(frame);
-        }, DeliveryMode::COPY);
-        
-        // 订阅云台数据
-        subscriber.subscribe<ReceivedDataMsg>("serial/data", worldhandeyeGimbalDataCallback, DeliveryMode::COPY);
+        ReceivedDataMsg msg;
+        if (serial_queue.pop("serial/data", msg)) {
+            current_gimbal_data.yaw = msg.yaw;
+            current_gimbal_data.pitch = msg.pitch;
+            current_gimbal_data.roll = msg.roll;
+            current_gimbal_data.timestamp = msg.timestamp;
+            gimbal_data_ready = true;
+        }
         
         ULOG_INFO_TAG("WorldHandEyeCalibrator", "Started capturing chessboard images");
         std::cout << "正在捕获图像。在显示窗口中按 'c' 捕获图像，按 'q' 停止捕获\n";
@@ -219,7 +219,6 @@ private:
         // 停止各线程
         stopCameraThread();
         stopSerialThread();
-        stopPubSubThread();
 
         ULOG_INFO_TAG("WorldHandEyeCalibrator", "图像捕获完成，共捕获 %d张图像", static_cast<int>(image_count_));
     }

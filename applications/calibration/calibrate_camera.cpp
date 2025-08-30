@@ -9,19 +9,18 @@
 #include <atomic>
 
 #include "HikCamera.h"
+#include "topicqueue.hpp"
 #include "ulog.hpp"
-#include "pubsub.hpp"
 
 // 声明外部变量
 extern std::atomic<bool> running;
 
 // 声明线程函数
-void startPubSubThread();
-void stopPubSubThread();
 void startCameraThread();
 void stopCameraThread();
 
 // 定义内部变量
+static rm_utils::TopicQueue<CameraFrame> image_queue(10); 
 static CameraFrame SubImage;
 static std::atomic<bool> imagesubReady(false);
 static std::atomic<bool> pattern_found(false); // 添加pattern_found变量
@@ -95,10 +94,6 @@ private:
     void captureImages() {
         std::cout << "开始捕获标定图像...\n";
         std::cout << "请将棋盘格放置在相机视野内的不同位置和角度\n";
-        std::cout << "按回车键继续...\n";
-
-        // 启动PubSub消息中心线程
-        startPubSubThread();
 
         // 启动相机线程
         startCameraThread();
@@ -106,12 +101,12 @@ private:
         capturing_ = true;
         image_count_ = 0;
         pattern_found = false; // 初始化pattern_found
-        
-        // 创建订阅者
-        Subscriber subscriber;
 
-        // 订阅相机图像
-        subscriber.subscribe<CameraFrame>("camera/image", [](const CameraFrame& frame) {processImage(frame);}, DeliveryMode::COPY);
+        CameraFrame frame;
+        // 检查是否有新的图像数据
+        if (image_queue.pop("image/camera", frame)){
+            processImage(frame);
+        }
         
         ULOG_INFO_TAG("Calibrator", "Started capturing chessboard images");
         std::cout << "正在捕获图像。在显示窗口中按 'c' 捕获图像，按 'q' 停止捕获\n";
@@ -155,8 +150,6 @@ private:
         cv::destroyAllWindows();
         // 停止相机线程
         stopCameraThread();
-        // 停止PubSub消息中心
-        stopPubSubThread();
 
         ULOG_INFO_TAG("Calibrator", "图像捕获完成，共捕获 %d张图像", static_cast<int>(image_count_));
     }

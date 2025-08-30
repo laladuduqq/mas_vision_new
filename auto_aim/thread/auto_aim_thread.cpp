@@ -2,7 +2,7 @@
  * @Author: laladuduqq 2807523947@qq.com
  * @Date: 2025-08-22 23:15:00
  * @LastEditors: laladuduqq 2807523947@qq.com
- * @LastEditTime: 2025-08-30 21:45:27
+ * @LastEditTime: 2025-08-30 22:02:07
  * @FilePath: /mas_vision_new/auto_aim/thread/auto_aim_thread.cpp
  * @Description: 自动瞄准线程实现
  */
@@ -20,15 +20,13 @@
 
 extern std::atomic<bool> running;
 
+static std::thread auto_aim_thread;
 static std::atomic<bool> auto_aim_thread_running(false);
-static std::atomic<bool> auto_aim_thread_finished(true);
 static std::unique_ptr<auto_aim::ArmorDetector> armor_detector = nullptr;
 static std::unique_ptr<auto_aim::Tracker> armor_tracker = nullptr;
 
 // 自动瞄准线程函数
 void autoAimThreadFunc() {
-    auto_aim_thread_finished = false;
-    
     ULOG_INFO_TAG("AutoAim", "Auto aim thread started");
     
     // 初始化装甲板检测器
@@ -37,7 +35,6 @@ void autoAimThreadFunc() {
         ULOG_INFO_TAG("AutoAim", "Armor detector initialized successfully");
     } catch (const std::exception& e) {
         ULOG_ERROR_TAG("AutoAim", "Failed to initialize armor detector: %s", e.what());
-        auto_aim_thread_finished = true;
         return;
     }
 
@@ -47,7 +44,6 @@ void autoAimThreadFunc() {
         ULOG_INFO_TAG("AutoAim", "Armor tracker initialized successfully");
     } catch (const std::exception& e) {
         ULOG_ERROR_TAG("AutoAim", "Failed to initialize armor tracker: %s", e.what());
-        auto_aim_thread_finished = true;
         return;
     }
     
@@ -110,23 +106,24 @@ void autoAimThreadFunc() {
     // 清理资源
     armor_detector.reset();
     
-    auto_aim_thread_finished = true;
     ULOG_INFO_TAG("AutoAim", "Auto aim thread stopped");
 }
 
 // 启动自动瞄准线程
 void startAutoAimThread() {
     auto_aim_thread_running = true;
-    static std::thread auto_aim_thread(autoAimThreadFunc);
-    // 分离线程，让它独立运行
-    auto_aim_thread.detach();
-    ULOG_INFO_TAG("AutoAim", "Auto aim thread launched");
+    auto_aim_thread = std::thread(autoAimThreadFunc);
 }
 
 // 停止自动瞄准线程
 void stopAutoAimThread() {
+    if (!auto_aim_thread_running) {
+        ULOG_WARNING_TAG("AutoAim", "Auto aim thread not running");
+        return;
+    }
     auto_aim_thread_running = false;
-    // 等待自动瞄准线程完全退出
-    while (!auto_aim_thread_finished.load());
-    ULOG_INFO_TAG("AutoAim", "Auto aim thread stopped");
+    // 等待自动瞄准线程退出
+    if (auto_aim_thread.joinable()) {
+        auto_aim_thread.join();
+    }
 }

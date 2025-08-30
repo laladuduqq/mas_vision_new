@@ -10,9 +10,11 @@
 
 // 全局变量
 extern std::atomic<bool> running;
+
+
+static std::thread serial_thread;
 static std::unique_ptr<serial::Serial> serial_port = nullptr;
 static std::atomic<bool> serial_thread_running(false);
-static std::atomic<bool> serial_thread_finished(true);
 
 
 // 串口数据缓存类
@@ -147,8 +149,6 @@ struct VirtualSerialParams {
 
 // 串口线程函数 - 物理串口模式
 void serialThreadFunc() {
-    serial_thread_finished = false;
-    
     // 读取YAML配置
     std::string port = "/dev/ttyUSB0";
     uint32_t baudrate = 115200;
@@ -214,12 +214,10 @@ void serialThreadFunc() {
                          port.c_str(), baudrate);
         } else {
             ULOG_ERROR_TAG("Serial", "Failed to open serial port: %s", port.c_str());
-            serial_thread_finished = true;
             return;
         }
     } catch (const std::exception& e) {
         ULOG_ERROR_TAG("Serial", "Exception while opening serial port: %s", e.what());
-        serial_thread_finished = true;
         return;
     }
     
@@ -276,14 +274,10 @@ void serialThreadFunc() {
         serial_port->close();
         ULOG_INFO_TAG("Serial", "Serial port closed");
     }
-    
-    serial_thread_finished = true;
 }
 
 // 虚拟串口线程函数
-void virtualSerialThreadFunc() {
-    serial_thread_finished = false;
-    
+void virtualSerialThreadFunc() {    
     // 读取虚拟串口参数
     VirtualSerialParams params;
     params.update_rate = 100;
@@ -348,8 +342,6 @@ void virtualSerialThreadFunc() {
         std::this_thread::sleep_for(
             std::chrono::milliseconds(1000 / params.update_rate));
     }
-    
-    serial_thread_finished = true;
 }
 
 // 启动串口线程
@@ -369,7 +361,7 @@ void startSerialThread() {
     }
     
     // 根据模式启动相应的线程
-    static std::thread serial_thread;
+
     if (virtual_mode) {
         ULOG_INFO_TAG("Serial", "Starting virtual serial thread");
         serial_thread = std::thread(virtualSerialThreadFunc);
@@ -377,17 +369,19 @@ void startSerialThread() {
         ULOG_INFO_TAG("Serial", "Starting physical serial thread");
         serial_thread = std::thread(serialThreadFunc);
     }
-    
-    serial_thread.detach();
     ULOG_INFO_TAG("Serial", "Serial thread started");
 }
 
 // 停止串口线程
 void stopSerialThread() {
+    if (!serial_thread_running) {
+        ULOG_WARNING_TAG("Serial", "Serial thread not running");
+        return;
+    }
     serial_thread_running = false;
-    // 等待串口线程完全退出
-    while (!serial_thread_finished.load()) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    // 等待串口线程退出
+    if (serial_thread.joinable()) {
+        serial_thread.join();
     }
     ULOG_INFO_TAG("Serial", "Serial thread stopped");
 }

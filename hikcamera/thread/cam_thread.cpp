@@ -2,7 +2,7 @@
  * @Author: laladuduqq 2807523947@qq.com
  * @Date: 2025-07-28 18:10:53
  * @LastEditors: laladuduqq 2807523947@qq.com
- * @LastEditTime: 2025-08-30 21:45:45
+ * @LastEditTime: 2025-08-30 22:05:57
  * @FilePath: /mas_vision_new/hikcamera/thread/cam_thread.cpp
  * @Description:
  */
@@ -19,17 +19,15 @@
 
 extern std::atomic<bool> running;
 
+static std::thread camera_thread;
 static bool displayEnabled = false;
 static std::atomic<bool> camera_thread_running(false);
-static std::atomic<bool> camera_thread_finished(true); // 标记相机线程是否已完成
 static bool recordEnabled = false;
 static double recordFps = 30.0;
 static std::unique_ptr<rm_utils::Recorder> recorder = nullptr;
 
 // 相机线程函数
 void cameraThreadFunc() {
-    camera_thread_finished = false; // 标记线程开始运行
-    
     // 默认参数
     float exposure_time = 5000.0f;
     float gain = 10.0f;
@@ -118,12 +116,9 @@ void cameraThreadFunc() {
                         cv::resize(frame, resizedDrawingFrame, cv::Size(frame.cols/2, frame.rows/2), 0, 0, cv::INTER_LINEAR);
                         cv::imshow("Camera", resizedDrawingFrame);
                     }
-                } else {
-                    // 视频读取失败
-                    ULOG_WARNING_TAG("Camera", "无法读取视频帧");
-                    std::this_thread::sleep_for(std::chrono::milliseconds(10));
-                }
+                } 
             }
+            videoPlayer.close();
         }
     } else {
         // 相机模式（默认）
@@ -175,7 +170,6 @@ void cameraThreadFunc() {
     if (!initSuccess) {
         ULOG_ERROR_TAG("Camera","Failed to initialize camera or open video");
         running = false;
-        camera_thread_finished = true; // 标记线程完成
         return;
     }
     
@@ -186,22 +180,23 @@ void cameraThreadFunc() {
         // 关闭所有OpenCV窗口
         cv::destroyAllWindows();
     }
-    
-    camera_thread_finished = true; // 标记线程完成
 }
 
-// 启动相机线程
-void startCameraThread() {
+// 启动函数
+void startCameraThread() {    
     camera_thread_running = true;
-    static std::thread camera_thread(cameraThreadFunc);
-    // 分离线程，让它独立运行
-    camera_thread.detach();
+    camera_thread = std::thread(cameraThreadFunc);
 }
 
-// 停止相机线程
+// 停止函数
 void stopCameraThread() {
+    if (!camera_thread_running) {
+        ULOG_WARNING_TAG("Camera", "Camera thread not running");
+        return;
+    }
     camera_thread_running = false;
-    // 等待相机线程完全退出
-    while (!camera_thread_finished.load());
+    if (camera_thread.joinable()) {
+        camera_thread.join();
+    }
     ULOG_INFO_TAG("Camera", "Camera thread stopped");
 }

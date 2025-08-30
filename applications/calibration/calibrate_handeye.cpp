@@ -2,7 +2,7 @@
  * @Author: laladuduqq 2807523947@qq.com
  * @Date: 2025-08-26 17:09:26
  * @LastEditors: laladuduqq 2807523947@qq.com
- * @LastEditTime: 2025-08-26 21:08:55
+ * @LastEditTime: 2025-08-30 21:47:20
  * @FilePath: /mas_vision_new/applications/calibration/calibrate_handeye.cpp
  * @Description: 
  */
@@ -22,7 +22,6 @@
 #include <opencv2/core/eigen.hpp>
 
 #include "HikCamera.h"
-#include "performance_monitor.hpp"
 #include "ulog.hpp"
 #include "pubsub.hpp"
 #include "serial.h"
@@ -31,7 +30,6 @@
 
 // 声明外部变量
 extern std::atomic<bool> running;
-extern mas_utils::PerformanceMonitor perfMonitor;
 
 // 声明线程函数
 void startPubSubThread();

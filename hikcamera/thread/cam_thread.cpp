@@ -2,7 +2,7 @@
  * @Author: laladuduqq 2807523947@qq.com
  * @Date: 2025-07-28 18:10:53
  * @LastEditors: laladuduqq 2807523947@qq.com
- * @LastEditTime: 2025-08-29 19:12:27
+ * @LastEditTime: 2025-08-30 21:45:45
  * @FilePath: /mas_vision_new/hikcamera/thread/cam_thread.cpp
  * @Description:
  */
@@ -12,14 +12,12 @@
 #include <atomic>
 #include <thread>
 #include "pubsub.hpp"
-#include "performance_monitor.hpp"
 #include "ulog.hpp"
 #include "recorder.hpp"
 #include "video.hpp"  
 #include "yaml-cpp/yaml.h"
 
 extern std::atomic<bool> running;
-extern mas_utils::PerformanceMonitor perfMonitor;
 
 static bool displayEnabled = false;
 static std::atomic<bool> camera_thread_running(false);
@@ -31,8 +29,6 @@ static std::unique_ptr<rm_utils::Recorder> recorder = nullptr;
 // 相机线程函数
 void cameraThreadFunc() {
     camera_thread_finished = false; // 标记线程开始运行
-    // 注册性能监控
-    perfMonitor.addThread("CameraThread", perfMonitor.getThreadsId());
     
     // 默认参数
     float exposure_time = 5000.0f;

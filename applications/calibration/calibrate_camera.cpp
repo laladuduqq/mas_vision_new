@@ -9,13 +9,11 @@
 #include <atomic>
 
 #include "HikCamera.h"
-#include "performance_monitor.hpp"
 #include "ulog.hpp"
 #include "pubsub.hpp"
 
 // 声明外部变量
 extern std::atomic<bool> running;
-extern mas_utils::PerformanceMonitor perfMonitor;
 
 // 声明线程函数
 void startPubSubThread();

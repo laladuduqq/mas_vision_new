@@ -2,14 +2,13 @@
  * @Author: laladuduqq 2807523947@qq.com
  * @Date: 2025-08-22 23:15:00
  * @LastEditors: laladuduqq 2807523947@qq.com
- * @LastEditTime: 2025-08-29 22:18:54
+ * @LastEditTime: 2025-08-30 21:45:27
  * @FilePath: /mas_vision_new/auto_aim/thread/auto_aim_thread.cpp
  * @Description: 自动瞄准线程实现
  */
 #include "armor_detector.hpp"
 #include "armor_track.hpp"
 #include "pubsub.hpp"
-#include "performance_monitor.hpp"
 #include "ulog.hpp"
 #include "serial_types.hpp"
 #include "HikCamera.h"
@@ -20,7 +19,6 @@
 #include <chrono>
 
 extern std::atomic<bool> running;
-extern mas_utils::PerformanceMonitor perfMonitor;
 
 static std::atomic<bool> auto_aim_thread_running(false);
 static std::atomic<bool> auto_aim_thread_finished(true);
@@ -30,8 +28,6 @@ static std::unique_ptr<auto_aim::Tracker> armor_tracker = nullptr;
 // 自动瞄准线程函数
 void autoAimThreadFunc() {
     auto_aim_thread_finished = false;
-    // 注册性能监控
-    perfMonitor.addThread("AutoAimThread", perfMonitor.getThreadsId());
     
     ULOG_INFO_TAG("AutoAim", "Auto aim thread started");
     

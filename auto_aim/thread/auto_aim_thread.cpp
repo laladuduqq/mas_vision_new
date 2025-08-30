@@ -2,7 +2,7 @@
  * @Author: laladuduqq 2807523947@qq.com
  * @Date: 2025-08-22 23:15:00
  * @LastEditors: laladuduqq 2807523947@qq.com
- * @LastEditTime: 2025-08-30 22:47:42
+ * @LastEditTime: 2025-08-30 23:13:29
  * @FilePath: /mas_vision_new/auto_aim/thread/auto_aim_thread.cpp
  * @Description: 自动瞄准线程实现
  */
@@ -19,10 +19,9 @@
 #include <chrono>
 
 extern std::atomic<bool> running;
+extern rm_utils::TopicQueue<CameraFrame> image_queue;
+extern rm_utils::TopicQueue<ReceivedDataMsg> serial_queue;
 
-// 创建一个话题队列实例
-static rm_utils::TopicQueue<CameraFrame> image_queue(10);  // 每个话题最多存储10帧图像
-static rm_utils::TopicQueue<ReceivedDataMsg> serial_queue(10); // 每个话题最多存储10条数据
 static std::thread auto_aim_thread;
 static std::atomic<bool> auto_aim_thread_running(false);
 static std::unique_ptr<auto_aim::ArmorDetector> armor_detector = nullptr;

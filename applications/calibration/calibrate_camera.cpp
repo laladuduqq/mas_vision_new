@@ -20,7 +20,7 @@ void startCameraThread();
 void stopCameraThread();
 
 // 定义内部变量
-static rm_utils::TopicQueue<CameraFrame> image_queue(10); 
+extern rm_utils::TopicQueue<CameraFrame> image_queue; 
 static CameraFrame SubImage;
 static std::atomic<bool> imagesubReady(false);
 static std::atomic<bool> pattern_found(false); // 添加pattern_found变量

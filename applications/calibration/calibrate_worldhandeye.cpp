@@ -2,7 +2,7 @@
  * @Author: laladuduqq 2807523947@qq.com
  * @Date: 2025-08-26 17:09:26
  * @LastEditors: laladuduqq 2807523947@qq.com
- * @LastEditTime: 2025-08-30 22:57:01
+ * @LastEditTime: 2025-08-30 23:16:10
  * @FilePath: /mas_vision_new/applications/calibration/calibrate_worldhandeye.cpp
  * @Description: 
  */
@@ -30,6 +30,8 @@
 
 // 声明外部变量
 extern std::atomic<bool> running;
+extern rm_utils::TopicQueue<CameraFrame> image_queue;
+extern rm_utils::TopicQueue<ReceivedDataMsg> serial_queue;
 
 // 声明线程函数
 void startCameraThread();
@@ -38,8 +40,6 @@ void startSerialThread();
 void stopSerialThread();
 
 // 定义内部变量
-static rm_utils::TopicQueue<CameraFrame> image_queue(10);  // 每个话题最多存储10帧图像
-static rm_utils::TopicQueue<ReceivedDataMsg> serial_queue(10); // 每个话题最多存储10条数据
 static CameraFrame SubImage;
 static std::atomic<bool> imagesubReady(false);
 static std::atomic<bool> pattern_found(false);

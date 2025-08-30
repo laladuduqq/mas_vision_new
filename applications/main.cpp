@@ -2,7 +2,7 @@
  * @Author: laladuduqq 2807523947@qq.com
  * @Date: 2025-08-17 16:17:20
  * @LastEditors: laladuduqq 2807523947@qq.com
- * @LastEditTime: 2025-08-30 22:49:13
+ * @LastEditTime: 2025-08-30 23:05:24
  * @FilePath: /mas_vision_new/applications/main.cpp
  * @Description: 
  */
@@ -72,7 +72,7 @@ int main(int argc, char* argv[])
     // 主循环
     while (running.load()) {
         // 主循环可以处理其他任务
-        std::this_thread::sleep_for(std::chrono::milliseconds(30));
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
 
 

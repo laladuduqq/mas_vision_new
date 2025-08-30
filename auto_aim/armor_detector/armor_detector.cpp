@@ -2,7 +2,7 @@
  * @Author: laladuduqq 2807523947@qq.com
  * @Date: 2025-08-22 13:47:12
  * @LastEditors: laladuduqq 2807523947@qq.com
- * @LastEditTime: 2025-08-29 19:28:52
+ * @LastEditTime: 2025-08-30 23:06:50
  * @FilePath: /mas_vision_new/auto_aim/armor_detector/armor_detector.cpp
  * @Description: 
  */
@@ -538,6 +538,7 @@ void ArmorDetector::showResult(const cv::Mat& bgr_img) const
         cv::Mat resized_result;
         cv::resize(result_img, resized_result, cv::Size(bgr_img.cols/2, bgr_img.rows/2));
         cv::imshow("Armor Detector Result", resized_result);
+        cv::waitKey(1);
     }
 }
 

@@ -2,7 +2,7 @@
  * @Author: laladuduqq 2807523947@qq.com
  * @Date: 2025-08-28 12:52:18
  * @LastEditors: laladuduqq 2807523947@qq.com
- * @LastEditTime: 2025-08-29 19:52:17
+ * @LastEditTime: 2025-08-30 23:07:09
  * @FilePath: /mas_vision_new/auto_aim/armor_tracking/armor_track.cpp
  * @Description: 
  */
@@ -196,6 +196,7 @@ void Tracker::drawDebug(const cv::Mat& bgr_img)
   cv::Mat resized_img;
   cv::resize(bgr_img, resized_img, cv::Size(bgr_img.cols/2, bgr_img.rows/2));
   cv::imshow("Tracker Debug", resized_img);
+  cv::waitKey(1);
 }
 void Tracker::state_machine(bool found)
 {

@@ -2,7 +2,7 @@
  * @Author: laladuduqq 2807523947@qq.com
  * @Date: 2025-08-22 23:15:00
  * @LastEditors: laladuduqq 2807523947@qq.com
- * @LastEditTime: 2025-08-30 23:13:29
+ * @LastEditTime: 2025-08-31 11:28:04
  * @FilePath: /mas_vision_new/auto_aim/thread/auto_aim_thread.cpp
  * @Description: 自动瞄准线程实现
  */
@@ -54,32 +54,25 @@ void autoAimThreadFunc() {
     
     // 主处理循环
     while (running.load() && auto_aim_thread_running.load()) {
-        // IMU数据
+        // IMU数据处理
         ReceivedDataMsg msg;
         if (serial_queue.pop("serial/data", msg)) {
             Eigen::Quaterniond q = getSerialDataAt(msg.timestamp);
             armor_tracker->set_R_gimbal2world(q);
         }
         CameraFrame frame;
-        // 检查是否有新的图像数据
         if (image_queue.pop("image/camera", frame)) {
-            // 执行装甲板检测
             if (armor_detector && !frame.frame.empty()) {
-                auto processStartTime = std::chrono::steady_clock::now();
-                // 检测装甲板
                 auto armors = armor_detector->ArmorDetect(frame.frame);
-                cv::Mat armor_detector_show = frame.frame.clone();
-                armor_detector->showResult(armor_detector_show);
-                // 跟踪装甲板
+                cv::Mat armor_debug_img = frame.frame.clone();
+                armor_detector->showResult(armor_debug_img);
                 auto timestamp = std::chrono::steady_clock::now();
                 auto tracked_targets = armor_tracker->track(armors, timestamp);
-                // 显示跟踪信息
-                cv::Mat armor_track_show = frame.frame.clone();
-                armor_tracker->drawDebug(armor_track_show);
+                cv::Mat track_debug_img = frame.frame.clone();
+                armor_tracker->drawDebug(track_debug_img);
             }
         }
     }
-    
     cv::destroyAllWindows();
     // 清理资源
     armor_detector.reset();

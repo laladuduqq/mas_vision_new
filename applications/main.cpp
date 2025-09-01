@@ -2,7 +2,7 @@
  * @Author: laladuduqq 2807523947@qq.com
  * @Date: 2025-08-17 16:17:20
  * @LastEditors: laladuduqq 2807523947@qq.com
- * @LastEditTime: 2025-09-01 08:52:02
+ * @LastEditTime: 2025-09-01 12:00:05
  * @FilePath: /mas_vision_new/applications/main.cpp
  * @Description: 
  */
@@ -124,9 +124,11 @@ int main(int argc, char* argv[])
 
     ULOG_INFO_TAG("main","Application exiting");
 
-    udpClient->shutdown();
-    udpClient->close();
-    udpClient.reset();
+    if (udpClient) {
+        udpClient->shutdown();
+        udpClient->close();
+        udpClient.reset();
+    }
 
     // 反初始化ulog，关闭日志文件
     ULOG_DEINIT();

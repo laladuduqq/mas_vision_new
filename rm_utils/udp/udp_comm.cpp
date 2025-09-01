@@ -2,7 +2,7 @@
  * @Author: laladuduqq 2807523947@qq.com
  * @Date: 2025-08-29 21:00:00
  * @LastEditors: laladuduqq 2807523947@qq.com
- * @LastEditTime: 2025-09-01 11:31:44
+ * @LastEditTime: 2025-09-01 11:59:24
  * @FilePath: /mas_vision_new/rm_utils/udp/udp_comm.cpp
  * @Description: 基于asio的UDP通信工具类实现
  */
@@ -183,12 +183,21 @@ bool UDPClient::sendImage(const cv::Mat& image, const std::string& header, int q
         // 使用互斥锁保护图像套接字操作
         std::lock_guard<std::mutex> lock(image_socket_mutex_);
         if (shutdown_) return false;
+        
         // 设置发送超时时间，避免无限期阻塞
         struct timeval tv;
         tv.tv_sec = 1;
         tv.tv_usec = 0;
         setsockopt(image_socket_->native_handle(), SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv));
-        image_socket_->send_to(asio::buffer(packet), image_endpoint_);
+        
+        // 使用带错误码的发送方式，避免抛出异常导致线程无法退出
+        asio::error_code error;
+        image_socket_->send_to(asio::buffer(packet), image_endpoint_, 0, error);
+        
+        if (error) {
+            ULOG_ERROR_TAG("UDPClient", "Failed to send image data: %s", error.message().c_str());
+            return false;
+        }
         
         // 更新发送时间以进行频率控制
         updateSendTime(header);
@@ -216,12 +225,21 @@ bool UDPClient::sendMessage(const std::string& message, const std::string& heade
         // 使用互斥锁保护消息套接字操作
         std::lock_guard<std::mutex> lock(message_socket_mutex_);
         if (shutdown_) return false;
+        
         // 设置发送超时时间，避免无限期阻塞
         struct timeval tv;
         tv.tv_sec = 1;
         tv.tv_usec = 0;
         setsockopt(message_socket_->native_handle(), SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv));
-        message_socket_->send_to(asio::buffer(packet), message_endpoint_);
+        
+        // 使用带错误码的发送方式，避免抛出异常导致线程无法退出
+        asio::error_code error;
+        message_socket_->send_to(asio::buffer(packet), message_endpoint_, 0, error);
+        
+        if (error) {
+            ULOG_ERROR_TAG("UDPClient", "Failed to send message data: %s", error.message().c_str());
+            return false;
+        }
         
         ULOG_DEBUG_TAG("UDPClient", "Sent message with header '%s': %s", header.c_str(), message.c_str());
         return true;

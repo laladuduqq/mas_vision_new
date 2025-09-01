@@ -2,12 +2,13 @@
  * @Author: laladuduqq 2807523947@qq.com
  * @Date: 2025-08-28 12:52:18
  * @LastEditors: laladuduqq 2807523947@qq.com
- * @LastEditTime: 2025-08-30 23:07:09
+ * @LastEditTime: 2025-09-01 09:37:05
  * @FilePath: /mas_vision_new/auto_aim/armor_tracking/armor_track.cpp
  * @Description: 
  */
 #include "armor_track.hpp"
 
+#include <opencv2/core/mat.hpp>
 #include <yaml-cpp/yaml.h>
 #include <numeric>
 
@@ -29,11 +30,13 @@ Tracker::Tracker(const std::string & config_path)
     min_detect_count_ = tracker_config["min_detect_count"].as<int>(5);
     max_temp_lost_count_ = tracker_config["max_temp_lost_count"].as<int>(10);
     outpost_max_temp_lost_count_ = tracker_config["outpost_max_temp_lost_count"].as<int>(30);
+    debug_ = tracker_config["debug"].as<bool>(false);
   } else {
     // 默认参数
     min_detect_count_ = 5;
     max_temp_lost_count_ = 10;
     outpost_max_temp_lost_count_ = 30;
+    debug_ = false;
   }
   normal_temp_lost_count_ = max_temp_lost_count_;
   
@@ -56,7 +59,7 @@ std::list<Target> Tracker::track(std::vector<Armor> & armors, std::chrono::stead
 
   // 时间间隔过长，说明可能发生了相机离线
   if (state_ != "lost" && dt > 0.1) {
-    ULOG_WARNING_TAG("Tracker", "[Tracker] Large dt: {:.3f}s", dt);
+    ULOG_WARNING_TAG("Tracker", "[Tracker] Large dt: {%.3f}s", dt);
     state_ = "lost";
   }
   
@@ -97,107 +100,205 @@ std::list<Target> Tracker::track(std::vector<Armor> & armors, std::chrono::stead
   return targets;
 }
 
-void Tracker::drawDebug(const cv::Mat& bgr_img)
+cv::Mat Tracker::drawDebug(const cv::Mat& bgr_img)
 {
-  // 检查输入图像是否有效
-  if (bgr_img.empty() || bgr_img.cols <= 0 || bgr_img.rows <= 0) {
-    ULOG_WARNING_TAG("tracker", "Invalid input image for drawDebug");
-    return;
-  }
-  
-  // 绘制跟踪状态
-  cv::putText(bgr_img, "Tracker State: " + state_, cv::Point(10, 30), 
-              cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(0, 255, 0), 2);
-              
-    // 绘制预测的装甲板位置（仅在tracking或temp_lost状态）
-    if (state_ == "tracking" || state_ == "temp_lost") {
-      // 显示目标信息
-      if (!target_.name.empty()) {
-        // 绘制目标名称
-        cv::putText(bgr_img, "Target: " + target_.name, cv::Point(10, 60), 
-                    cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(0, 255, 0), 2);
-        
-        // 绘制目标装甲板类型
-        cv::putText(bgr_img, "Type: " + ARMOR_TYPES[target_.armor_type], cv::Point(10, 90), 
-                    cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(0, 255, 0), 2);
-        
-        // 绘制目标优先级
-        cv::putText(bgr_img, "Priority: " + std::to_string(target_.priority), cv::Point(10, 120), 
-                    cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(0, 255, 0), 2);
-        
-        // 绘制是否收敛
-        std::string converge_status = target_.convergened() ? "Converged" : "Not Converged";
-        cv::putText(bgr_img, "Status: " + converge_status, cv::Point(10, 180), 
-                    cv::FONT_HERSHEY_SIMPLEX, 0.7, 
-                    target_.convergened() ? cv::Scalar(0, 255, 0) : cv::Scalar(0, 0, 255), 2);
-        
-        // 绘制是否发生跳跃
-        std::string jump_status = target_.jumped ? "Jumped" : "Not Jumped";
-        cv::putText(bgr_img, "Jump: " + jump_status, cv::Point(10, 210), 
-                    cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(0, 255, 0), 2);
-      std::vector<Eigen::Vector4d> armor_xyza_list = target_.armor_xyza_list();
-      for (size_t i = 0; i < armor_xyza_list.size(); ++i) {
-        const Eigen::Vector4d& xyza = armor_xyza_list[i];
-        // 重投影装甲板到图像平面
-        if (pose_estimator_) {
-          auto image_points = pose_estimator_->reproject_armor(
-            xyza.head(3), xyza[3], target_.armor_type, target_.name);
+  if (debug_)
+  {
+    // 检查输入图像是否有效
+    if (bgr_img.empty() || bgr_img.cols <= 0 || bgr_img.rows <= 0) {
+      ULOG_WARNING_TAG("tracker", "Invalid input image for drawDebug");
+      return cv::Mat();
+    }
+    
+    // 绘制跟踪状态
+    cv::putText(bgr_img, "Tracker State: " + state_, cv::Point(10, 30), 
+                cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(0, 255, 0), 2);
+                
+      // 绘制预测的装甲板位置（仅在tracking或temp_lost状态）
+      if (state_ == "tracking" || state_ == "temp_lost") {
+        // 显示目标信息
+        if (!target_.name.empty()) {
+          // 绘制目标名称
+          cv::putText(bgr_img, "Target: " + target_.name, cv::Point(10, 60), 
+                      cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(0, 255, 0), 2);
           
-          for (size_t j = 0; j < image_points.size(); ++j) {
-            cv::line(bgr_img, image_points[j], image_points[(j+1) % image_points.size()], 
-            cv::Scalar(0, 255, 0), 2);
-          }
+          // 绘制目标装甲板类型
+          cv::putText(bgr_img, "Type: " + ARMOR_TYPES[target_.armor_type], cv::Point(10, 90), 
+                      cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(0, 255, 0), 2);
           
-          // 标记装甲板ID
-          if (!image_points.empty()) {
-            cv::putText(bgr_img, std::to_string(i), image_points[0], 
-                        cv::FONT_HERSHEY_SIMPLEX, 0.6, cv::Scalar(255, 0, 0), 2);
+          // 绘制目标优先级
+          cv::putText(bgr_img, "Priority: " + std::to_string(target_.priority), cv::Point(10, 120), 
+                      cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(0, 255, 0), 2);
+          
+          // 绘制是否收敛
+          std::string converge_status = target_.convergened() ? "Converged" : "Not Converged";
+          cv::putText(bgr_img, "Status: " + converge_status, cv::Point(10, 180), 
+                      cv::FONT_HERSHEY_SIMPLEX, 0.7, 
+                      target_.convergened() ? cv::Scalar(0, 255, 0) : cv::Scalar(0, 0, 255), 2);
+          
+          // 绘制是否发生跳跃
+          std::string jump_status = target_.jumped ? "Jumped" : "Not Jumped";
+          cv::putText(bgr_img, "Jump: " + jump_status, cv::Point(10, 210), 
+                      cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(0, 255, 0), 2);
+        std::vector<Eigen::Vector4d> armor_xyza_list = target_.armor_xyza_list();
+        for (size_t i = 0; i < armor_xyza_list.size(); ++i) {
+          const Eigen::Vector4d& xyza = armor_xyza_list[i];
+          // 重投影装甲板到图像平面
+          if (pose_estimator_) {
+            auto image_points = pose_estimator_->reproject_armor(
+              xyza.head(3), xyza[3], target_.armor_type, target_.name);
+            
+            for (size_t j = 0; j < image_points.size(); ++j) {
+              cv::line(bgr_img, image_points[j], image_points[(j+1) % image_points.size()], 
+              cv::Scalar(0, 255, 0), 2);
+            }
+            
+            // 标记装甲板ID
+            if (!image_points.empty()) {
+              cv::putText(bgr_img, std::to_string(i), image_points[0], 
+                          cv::FONT_HERSHEY_SIMPLEX, 0.6, cv::Scalar(255, 0, 0), 2);
+            }
           }
         }
+        
+        // 显示EKF状态信息
+        if (target_.ekf_x().size() >= 11) {
+          const Eigen::VectorXd& x = target_.ekf_x();
+          cv::putText(bgr_img, cv::format("Pos: (%.2f, %.2f, %.2f)", x[0], x[2], x[4]), 
+                      cv::Point(10, 240), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(255, 255, 0), 2);
+          cv::putText(bgr_img, cv::format("Vel: (%.2f, %.2f, %.2f)", x[1], x[3], x[5]), 
+                      cv::Point(10, 280), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(255, 255, 0), 2);
+          cv::putText(bgr_img, cv::format("Angle: %.2f rad", x[6]), 
+                      cv::Point(10, 320), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(255, 255, 0), 2);
+          cv::putText(bgr_img, cv::format("AngVel: %.2f", x[7]), 
+                      cv::Point(10, 360), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(255, 255, 0), 2);
+          cv::putText(bgr_img, cv::format("Radius: %.3f", x[8]), 
+                      cv::Point(10, 380), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(255, 255, 0), 2);
+        }
+        
+        // 显示目标装甲板的位姿信息
+        // 获取最新的装甲板位姿
+        if (!armor_xyza_list.empty()) {
+          const Eigen::Vector4d& latest_armor = armor_xyza_list.front();
+          cv::putText(bgr_img, cv::format("Armor Pos: (%.2f, %.2f, %.2f)", 
+                                      latest_armor[0], latest_armor[1], latest_armor[2]), 
+                      cv::Point(10, 420), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(0, 255, 255), 2);
+          cv::putText(bgr_img, cv::format("Armor Yaw: %.2f rad (%.1f deg)", 
+                                      latest_armor[3], latest_armor[3] * 180.0 / CV_PI), 
+                      cv::Point(10, 460), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(0, 255, 255), 2);
+        }
       }
-      
-      // 显示EKF状态信息
-      if (target_.ekf_x().size() >= 11) {
-        const Eigen::VectorXd& x = target_.ekf_x();
-        cv::putText(bgr_img, cv::format("Pos: (%.2f, %.2f, %.2f)", x[0], x[2], x[4]), 
-                    cv::Point(10, 240), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(255, 255, 0), 2);
-        cv::putText(bgr_img, cv::format("Vel: (%.2f, %.2f, %.2f)", x[1], x[3], x[5]), 
-                    cv::Point(10, 280), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(255, 255, 0), 2);
-        cv::putText(bgr_img, cv::format("Angle: %.2f rad", x[6]), 
-                    cv::Point(10, 320), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(255, 255, 0), 2);
-        cv::putText(bgr_img, cv::format("AngVel: %.2f", x[7]), 
-                    cv::Point(10, 360), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(255, 255, 0), 2);
-        cv::putText(bgr_img, cv::format("Radius: %.3f", x[8]), 
-                    cv::Point(10, 380), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(255, 255, 0), 2);
-      }
-      
-      // 显示目标装甲板的位姿信息
-      // 获取最新的装甲板位姿
-      if (!armor_xyza_list.empty()) {
-        const Eigen::Vector4d& latest_armor = armor_xyza_list.front();
-        cv::putText(bgr_img, cv::format("Armor Pos: (%.2f, %.2f, %.2f)", 
-                                    latest_armor[0], latest_armor[1], latest_armor[2]), 
-                    cv::Point(10, 420), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(0, 255, 255), 2);
-        cv::putText(bgr_img, cv::format("Armor Yaw: %.2f rad (%.1f deg)", 
-                                    latest_armor[3], latest_armor[3] * 180.0 / CV_PI), 
-                    cv::Point(10, 460), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(0, 255, 255), 2);
-      }
+    } else if (state_ != "lost") {
+      // 当没有目标但不是lost状态时，显示提示信息
+      cv::putText(bgr_img, "Searching target...", cv::Point(10, 60), 
+                  cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(255, 255, 0), 2);
+    } else {
+      // 当没有追踪目标时，显示提示信息
+      cv::putText(bgr_img, "No target tracked", cv::Point(10, 60), 
+                  cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(0, 0, 255), 2);
     }
-  } else if (state_ != "lost") {
-    // 当没有目标但不是lost状态时，显示提示信息
-    cv::putText(bgr_img, "Searching target...", cv::Point(10, 60), 
-                cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(255, 255, 0), 2);
-  } else {
-    // 当没有追踪目标时，显示提示信息
-    cv::putText(bgr_img, "No target tracked", cv::Point(10, 60), 
-                cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(0, 0, 255), 2);
+    // 创建缩小版图像用于显示
+    cv::Mat resized_img;
+    cv::resize(bgr_img, resized_img, cv::Size(bgr_img.cols/2, bgr_img.rows/2));
+    return resized_img;
   }
-  // 创建缩小版图像用于显示
-  cv::Mat resized_img;
-  cv::resize(bgr_img, resized_img, cv::Size(bgr_img.cols/2, bgr_img.rows/2));
-  cv::imshow("Tracker Debug", resized_img);
-  cv::waitKey(1);
+  else {
+    return cv::Mat();
+  }
 }
+
+std::string Tracker::sendData() const
+{
+  // 构建JSON格式的调试数据
+  std::ostringstream json_stream;
+  json_stream << "{";
+  
+  // 添加基本跟踪器信息
+  json_stream << "\"state\":\"" << state_ << "\",";
+  json_stream << "\"detect_count\":" << detect_count_ << ",";
+  json_stream << "\"temp_lost_count\":" << temp_lost_count_ << ",";
+  
+  // 添加目标信息（如果存在）
+  json_stream << "\"target\":{";
+  if (state_ == "tracking" || state_ == "temp_lost") {
+    json_stream << "\"name\":\"" << target_.name << "\",";
+    json_stream << "\"type\":\"" << ARMOR_TYPES[target_.armor_type] << "\",";
+    json_stream << "\"priority\":" << static_cast<int>(target_.priority) << ",";
+    json_stream << "\"jumped\":" << (target_.jumped ? "true" : "false") << ",";
+    
+    // 添加EKF状态信息
+    if (target_.ekf_x().size() >= 11) {
+      const Eigen::VectorXd& x = target_.ekf_x();
+      json_stream << "\"position\":{";
+      json_stream << "\"x\":" << x[0] << ",";
+      json_stream << "\"y\":" << x[2] << ",";
+      json_stream << "\"z\":" << x[4];
+      json_stream << "},";
+      
+      json_stream << "\"velocity\":{";
+      json_stream << "\"x\":" << x[1] << ",";
+      json_stream << "\"y\":" << x[3] << ",";
+      json_stream << "\"z\":" << x[5];
+      json_stream << "},";
+      
+      json_stream << "\"angle\":" << x[6] << ",";
+      json_stream << "\"angular_velocity\":" << x[7] << ",";
+      json_stream << "\"radius\":" << x[8];
+    } else {
+      // 当EKF状态信息不存在时，统一为0
+      json_stream << "\"position\":{";
+      json_stream << "\"x\":" << 0 << ",";
+      json_stream << "\"y\":" << 0 << ",";
+      json_stream << "\"z\":" << 0;
+      json_stream << "},";
+      
+      json_stream << "\"velocity\":{";
+      json_stream << "\"x\":" << 0 << ",";
+      json_stream << "\"y\":" << 0 << ",";
+      json_stream << "\"z\":" << 0;
+      json_stream << "},";
+      
+      json_stream << "\"angle\":" << 0 << ",";
+      json_stream << "\"angular_velocity\":" << 0 << ",";
+      json_stream << "\"radius\":" << 0;
+    }
+  } else {
+    // 当目标不存在时，统一为0
+    json_stream << "\"name\":\"\",";
+    json_stream << "\"type\":\"\",";
+    json_stream << "\"priority\":" << 0 << ",";
+    json_stream << "\"jumped\":" << "false" << ",";
+    
+    json_stream << "\"position\":{";
+    json_stream << "\"x\":" << 0 << ",";
+    json_stream << "\"y\":" << 0 << ",";
+    json_stream << "\"z\":" << 0;
+    json_stream << "},";
+    
+    json_stream << "\"velocity\":{";
+    json_stream << "\"x\":" << 0 << ",";
+    json_stream << "\"y\":" << 0 << ",";
+    json_stream << "\"z\":" << 0;
+    json_stream << "},";
+    
+    json_stream << "\"angle\":" << 0 << ",";
+    json_stream << "\"angular_velocity\":" << 0 << ",";
+    json_stream << "\"radius\":" << 0;
+  }
+  json_stream << "},";
+  
+  // 添加时间戳
+  auto now = std::chrono::duration_cast<std::chrono::milliseconds>(
+    std::chrono::steady_clock::now().time_since_epoch()).count();
+  json_stream << "\"timestamp\":" << now;
+  
+  json_stream << "}";
+  
+  // 发送JSON数据
+  std::string json_string = json_stream.str();
+  return json_string;
+}
+
 void Tracker::state_machine(bool found)
 {
   if (state_ == "lost") {

@@ -2,10 +2,12 @@
  * @Author: laladuduqq 2807523947@qq.com
  * @Date: 2025-08-17 16:17:20
  * @LastEditors: laladuduqq 2807523947@qq.com
- * @LastEditTime: 2025-08-30 23:05:24
+ * @LastEditTime: 2025-09-01 08:52:02
  * @FilePath: /mas_vision_new/applications/main.cpp
  * @Description: 
  */
+#include "yaml-cpp/yaml.h"
+#include "udp_comm.hpp"
 #include "ulog.hpp"
 #include <thread>
 #include <atomic>
@@ -32,6 +34,8 @@ int runHandeyeCalibration();
 int runWorldHandEyeCalibration();
 
 std::atomic<bool> running(true);
+// UDP客户端
+std::unique_ptr<rm_utils::UDPClient> udpClient = nullptr;
 
 // 信号处理函数，用于退出
 void signalHandler(int signum) {
@@ -56,7 +60,40 @@ int main(int argc, char* argv[])
     signal(SIGINT, signalHandler);
 
     // 初始化ulog日志系统
-    ULOG_INIT_CONSOLE_AND_FILE(ULOG_INFO_LEVEL, ULOG_TRACE_LEVEL);
+    ULOG_INIT_CONSOLE_AND_FILE(ULOG_INFO_LEVEL, ULOG_INFO_LEVEL);
+
+    // 从YAML配置文件读取UDP参数
+    std::string target_ip = "127.0.0.1";
+    int image_port = 9993;
+    int message_port = 9994;
+    
+    try {
+        YAML::Node config = YAML::LoadFile("config/utils.yaml");
+        if (config["udp"]) {
+            if (config["udp"]["target_ip"]) 
+                target_ip = config["udp"]["target_ip"].as<std::string>();
+            if (config["udp"]["image_port"]) 
+                image_port = config["udp"]["image_port"].as<int>();
+            if (config["udp"]["message_port"]) 
+                message_port = config["udp"]["message_port"].as<int>();
+        }
+    } catch (const std::exception& e) {
+        ULOG_WARNING_TAG("main", "Failed to load UDP config from utils.yaml, using defaults: %s", e.what());
+    }
+
+    // 初始化UDP客户端
+    try {
+        udpClient = std::make_unique<rm_utils::UDPClient>(target_ip, image_port, message_port);
+        if (!udpClient->init()) {
+            ULOG_ERROR_TAG("main", "Failed to initialize UDP client");
+            return -1;
+        }
+        ULOG_INFO_TAG("main", "UDP client initialized successfully with IP: %s, image port: %d, message port: %d", 
+                      target_ip.c_str(), image_port, message_port);
+    } catch (const std::exception& e) {
+        ULOG_ERROR_TAG("main", "Exception during UDP client initialization: %s", e.what());
+        return -1;
+    }
 
     // 启动相机线程
     startCameraThread();
@@ -86,6 +123,10 @@ int main(int argc, char* argv[])
     stopCameraThread();
 
     ULOG_INFO_TAG("main","Application exiting");
+
+    udpClient->shutdown();
+    udpClient->close();
+    udpClient.reset();
 
     // 反初始化ulog，关闭日志文件
     ULOG_DEINIT();

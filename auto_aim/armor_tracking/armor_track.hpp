@@ -2,7 +2,7 @@
  * @Author: laladuduqq 2807523947@qq.com
  * @Date: 2025-08-28 12:52:26
  * @LastEditors: laladuduqq 2807523947@qq.com
- * @LastEditTime: 2025-08-29 19:52:30
+ * @LastEditTime: 2025-09-01 08:48:15
  * @FilePath: /mas_vision_new/auto_aim/armor_tracking/armor_track.hpp
  * @Description: 
  */
@@ -12,6 +12,7 @@
 #include <Eigen/Dense>
 #include <chrono>
 #include <list>
+#include <opencv2/core/mat.hpp>
 #include <string>
 #include <vector>
 
@@ -31,7 +32,8 @@ public:
   std::list<Target> track(std::vector<Armor> & armors, std::chrono::steady_clock::time_point t);
     
   // 添加调试绘制函数
-  void drawDebug(const cv::Mat& bgr_img);
+  cv::Mat drawDebug(const cv::Mat& bgr_img);
+  std::string sendData() const;
 
   /**
     * @brief 获取云台到世界坐标系的旋转矩阵
@@ -46,6 +48,7 @@ public:
   void set_R_gimbal2world(const Eigen::Quaterniond & q);
 
 private:
+  bool debug_ = false;
   int min_detect_count_;
   int max_temp_lost_count_;
   int detect_count_;

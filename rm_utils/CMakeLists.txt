@@ -5,21 +5,29 @@ add_library(rm_utils STATIC
     ${CMAKE_CURRENT_SOURCE_DIR}/video/video.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/math/rmmath.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/math/extended_kalman_filter.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/udp/udp_comm.cpp
 )
 
 find_package(OpenCV REQUIRED)
 find_package(fmt REQUIRED)
 find_package(Eigen3 REQUIRED)
+# 查找独立的asio库
+find_package(PkgConfig)
+if(PKG_CONFIG_FOUND)
+    pkg_check_modules(ASIO asio)
+endif()
 
 # 设置库的包含目录
 target_include_directories(rm_utils PUBLIC
     ${EIGEN3_INCLUDE_DIRS}
     ${OpenCV_INCLUDE_DIRS}
+    ${ASIO_INCLUDE_DIRS}
     ${CMAKE_CURRENT_SOURCE_DIR}/TopicQueue
     ${CMAKE_CURRENT_SOURCE_DIR}/ulog
     ${CMAKE_CURRENT_SOURCE_DIR}/recorder
     ${CMAKE_CURRENT_SOURCE_DIR}/video
     ${CMAKE_CURRENT_SOURCE_DIR}/math
+    ${CMAKE_CURRENT_SOURCE_DIR}/udp
 )
 
 # 链接所需库
@@ -35,7 +43,9 @@ list(APPEND MAIN_PROJECT_INCLUDE_DIRS
     ${CMAKE_CURRENT_SOURCE_DIR}/TopicQueue
     ${CMAKE_CURRENT_SOURCE_DIR}/ulog
     ${CMAKE_CURRENT_SOURCE_DIR}/recorder
-    ${CMAKE_CURRENT_SOURCE_DIR}/video)
+    ${CMAKE_CURRENT_SOURCE_DIR}/video
+    ${CMAKE_CURRENT_SOURCE_DIR}/udp
+    ${CMAKE_CURRENT_SOURCE_DIR}/math)
 
 
 set(MAIN_PROJECT_LIBRARIES ${MAIN_PROJECT_LIBRARIES} CACHE INTERNAL "Libraries for main project")

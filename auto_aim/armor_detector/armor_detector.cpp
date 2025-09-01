@@ -2,7 +2,7 @@
  * @Author: laladuduqq 2807523947@qq.com
  * @Date: 2025-08-22 13:47:12
  * @LastEditors: laladuduqq 2807523947@qq.com
- * @LastEditTime: 2025-08-30 23:06:50
+ * @LastEditTime: 2025-08-31 12:09:25
  * @FilePath: /mas_vision_new/auto_aim/armor_detector/armor_detector.cpp
  * @Description: 
  */
@@ -464,14 +464,16 @@ ArmorType ArmorDetector::isArmor(const LightBar & light_1, const LightBar & ligh
 
 
 
-void ArmorDetector::showResult(const cv::Mat& bgr_img) const
+std::map<std::string, cv::Mat> ArmorDetector::showResult(const cv::Mat& bgr_img) const
 {
+    std::map<std::string, cv::Mat> result_map;
+    
     if (debug_)
     {
         // 检查输入图像是否有效
         if (bgr_img.empty() || bgr_img.cols <= 0 || bgr_img.rows <= 0) {
             ULOG_WARNING_TAG("armor_detector", "Invalid input image for showResult");
-            return;
+            return result_map;
         }
 
         // 显示二值化图像（尺寸为原图的一半）
@@ -485,7 +487,7 @@ void ArmorDetector::showResult(const cv::Mat& bgr_img) const
         cv::threshold(gray_img, binary_img, threshold_, 255, cv::THRESH_BINARY);
         cv::Mat resized_binary;
         cv::resize(binary_img, resized_binary, cv::Size(bgr_img.cols/2, bgr_img.rows/2));
-        cv::imshow("Binary Image", resized_binary);
+        result_map["binary_image"] = resized_binary;
 
         // 显示结果图像（包含装甲板和角点，尺寸为原图的一半）
         cv::Mat result_img = bgr_img.clone();
@@ -537,9 +539,9 @@ void ArmorDetector::showResult(const cv::Mat& bgr_img) const
         // 调整结果显示图像大小
         cv::Mat resized_result;
         cv::resize(result_img, resized_result, cv::Size(bgr_img.cols/2, bgr_img.rows/2));
-        cv::imshow("Armor Detector Result", resized_result);
-        cv::waitKey(1);
+        result_map["armor_detector"] = resized_result;
     }
+    return result_map;
 }
 
 cv::Mat ArmorDetector::getAllNumbersImage() const

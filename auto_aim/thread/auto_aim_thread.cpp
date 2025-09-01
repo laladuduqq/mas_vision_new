@@ -2,17 +2,20 @@
  * @Author: laladuduqq 2807523947@qq.com
  * @Date: 2025-08-22 23:15:00
  * @LastEditors: laladuduqq 2807523947@qq.com
- * @LastEditTime: 2025-08-31 11:28:04
+ * @LastEditTime: 2025-09-01 11:24:09
  * @FilePath: /mas_vision_new/auto_aim/thread/auto_aim_thread.cpp
  * @Description: 自动瞄准线程实现
  */
 #include "armor_detector.hpp"
 #include "armor_track.hpp"
+#include "auto_aim_info.hpp"
 #include "topicqueue.hpp"
+#include "udp_comm.hpp"
 #include "ulog.hpp"
 #include "serial_types.hpp"
 #include "HikCamera.h"
 
+#include <opencv2/highgui.hpp>
 #include <string>
 #include <thread>
 #include <atomic>
@@ -21,11 +24,13 @@
 extern std::atomic<bool> running;
 extern rm_utils::TopicQueue<CameraFrame> image_queue;
 extern rm_utils::TopicQueue<ReceivedDataMsg> serial_queue;
+extern std::unique_ptr<rm_utils::UDPClient> udpClient;
 
 static std::thread auto_aim_thread;
 static std::atomic<bool> auto_aim_thread_running(false);
 static std::unique_ptr<auto_aim::ArmorDetector> armor_detector = nullptr;
 static std::unique_ptr<auto_aim::Tracker> armor_tracker = nullptr;
+static auto_aim::AutoAimInfo auto_aim_info; 
 
 // 自动瞄准线程函数
 void autoAimThreadFunc() {
@@ -63,17 +68,50 @@ void autoAimThreadFunc() {
         CameraFrame frame;
         if (image_queue.pop("image/camera", frame)) {
             if (armor_detector && !frame.frame.empty()) {
+                // 开始计时
+                auto_aim_info.startTimer("total");
+                auto_aim_info.startTimer("detector");
                 auto armors = armor_detector->ArmorDetect(frame.frame);
-                cv::Mat armor_debug_img = frame.frame.clone();
-                armor_detector->showResult(armor_debug_img);
+                auto_aim_info.stopTimer("detector");
+
+                auto_aim_info.startTimer("track");
                 auto timestamp = std::chrono::steady_clock::now();
                 auto tracked_targets = armor_tracker->track(armors, timestamp);
+                auto_aim_info.stopTimer("track");\
+
+                // debug 显示
+                auto_aim_info.updateFPS();
+                cv::Mat armor_debug_img = frame.frame.clone();
+                auto detector_map = armor_detector->showResult(armor_debug_img);
+                if (detector_map.find("binary_image") != detector_map.end()) {
+                    cv::Mat& binary = detector_map["binary_image"];
+                    if (udpClient && udpClient->isInitialized()) {
+                        udpClient->sendImage(binary,"binary");
+                    }
+                }
+                if (detector_map.find("armor_detector") != detector_map.end()) {
+                    cv::Mat& armor_detector_result = detector_map["armor_detector"];
+                    auto_aim_info.drawInfo(armor_detector_result, "detector");
+                    if (udpClient && udpClient->isInitialized()) {
+                        udpClient->sendImage(armor_detector_result,"armor_detector");
+                    }
+                }
                 cv::Mat track_debug_img = frame.frame.clone();
-                armor_tracker->drawDebug(track_debug_img);
+                cv::Mat tracker_debug = armor_tracker->drawDebug(track_debug_img);
+                if (!tracker_debug.empty())
+                {
+                    auto_aim_info.drawInfo(tracker_debug, "track");
+                    if (udpClient && udpClient->isInitialized()) {
+                        udpClient->sendImage(tracker_debug,"armor_track");
+                    }
+                }
+                std::string json_data = armor_tracker->sendData();
+                if (!json_data.empty() && udpClient && udpClient->isInitialized()) {
+                    udpClient->sendMessage(json_data,"tracker"); 
+                }
             }
         }
     }
-    cv::destroyAllWindows();
     // 清理资源
     armor_detector.reset();
     

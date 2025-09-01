@@ -2,7 +2,7 @@
  * @Author: laladuduqq 2807523947@qq.com
  * @Date: 2025-07-28 18:10:53
  * @LastEditors: laladuduqq 2807523947@qq.com
- * @LastEditTime: 2025-08-30 23:05:57
+ * @LastEditTime: 2025-08-31 13:47:40
  * @FilePath: /mas_vision_new/hikcamera/thread/cam_thread.cpp
  * @Description:
  */
@@ -12,12 +12,14 @@
 #include <atomic>
 #include <thread>
 #include "topicqueue.hpp"
+#include "udp_comm.hpp"
 #include "ulog.hpp"
 #include "recorder.hpp"
 #include "video.hpp"  
 #include "yaml-cpp/yaml.h"
 
 extern std::atomic<bool> running;
+extern std::unique_ptr<rm_utils::UDPClient> udpClient;
 
 // 创建一个话题队列实例
 rm_utils::TopicQueue<CameraFrame> image_queue(10);  // 每个话题最多存储10帧图像
@@ -113,8 +115,9 @@ void cameraThreadFunc() {
                         // 显示图像
                         cv::Mat resizedDrawingFrame;
                         cv::resize(frame, resizedDrawingFrame, cv::Size(frame.cols/2, frame.rows/2), 0, 0, cv::INTER_LINEAR);
-                        cv::imshow("Camera", resizedDrawingFrame);
-                        cv::waitKey(1);
+                        if (udpClient && udpClient->isInitialized()) {
+                            udpClient->sendImage(resizedDrawingFrame,"camera");
+                        }
                     }
                 } 
             }
@@ -156,9 +159,10 @@ void cameraThreadFunc() {
                     if (displayEnabled) {
                         // 显示图像
                         cv::Mat resizedDrawingFrame;
-                        cv::resize(frame, resizedDrawingFrame, cv::Size(640, 480), 0, 0, cv::INTER_LINEAR);
-                        cv::imshow("Camera", resizedDrawingFrame);
-                        cv::waitKey(1);
+                        cv::resize(frame, resizedDrawingFrame, cv::Size(frame.cols/2, frame.rows/2), 0, 0, cv::INTER_LINEAR);
+                        if (udpClient && udpClient->isInitialized()) {
+                            udpClient->sendImage(resizedDrawingFrame,"camera");
+                        }
                     }
                 }
             }
@@ -175,11 +179,6 @@ void cameraThreadFunc() {
     
     // 重置recorder指针，确保正确析构
     recorder.reset();
-    
-    if (displayEnabled) {
-        // 关闭所有OpenCV窗口
-        cv::destroyAllWindows();
-    }
 }
 
 // 启动函数

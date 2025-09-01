@@ -22,6 +22,7 @@ auto_aim:
       classifier_threshold: 0.7
       ignore_classes: ["negative"]
   tracker:
+    debug: true
     min_detect_count: 5
     max_temp_lost_count: 10
     outpost_max_temp_lost_count: 30

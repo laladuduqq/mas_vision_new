@@ -2,6 +2,7 @@
 #include <thread>
 #include <atomic>
 #include <chrono>
+#include "udp_comm.hpp"
 #include "ulog.hpp"
 #include "topicqueue.hpp"
 #include "serial_types.hpp"
@@ -10,6 +11,7 @@
 
 // 全局变量
 extern std::atomic<bool> running;
+extern std::unique_ptr<rm_utils::UDPClient> udpClient;
 
 // 创建一个话题实例
 rm_utils::TopicQueue<ReceivedDataMsg> serial_queue(10);  // 每个话题最多存储10个消息
@@ -249,6 +251,18 @@ void serialThreadFunc() {
                     
                     // 发布消息
                     serial_queue.push("serial/data", msg);
+
+                    if (udpClient && udpClient->isInitialized()) {
+                        // 将ReceivedDataMsg转换为JSON格式的字符串再发送
+                        std::string json_message = "{"
+                            "\"yaw\":" + std::to_string(msg.yaw) + ","
+                            "\"pitch\":" + std::to_string(msg.pitch) + ","
+                            "\"roll\":" + std::to_string(msg.roll) + ","
+                            "\"mode\":" + std::to_string(msg.mode) + ","
+                            "\"timestamp\":" + std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>(msg.timestamp.time_since_epoch()).count()) +
+                            "}";
+                        udpClient->sendMessage(json_message, "serial/receive");
+                    }
                     
                     ULOG_DEBUG_TAG("Serial", "Received valid packet - Yaw: %.2f, Pitch: %.2f, Roll: %.2f, Mode: %d", 
                                   msg.yaw, msg.pitch, msg.roll, msg.mode);
@@ -330,6 +344,17 @@ void virtualSerialThreadFunc() {
         
         // 发布消息
         serial_queue.push("serial/data", msg);
+        if (udpClient && udpClient->isInitialized()) {
+            // 将ReceivedDataMsg转换为JSON格式的字符串再发送
+            std::string json_message = "{"
+                "\"yaw\":" + std::to_string(msg.yaw) + ","
+                "\"pitch\":" + std::to_string(msg.pitch) + ","
+                "\"roll\":" + std::to_string(msg.roll) + ","
+                "\"mode\":" + std::to_string(msg.mode) + ","
+                "\"timestamp\":" + std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>(msg.timestamp.time_since_epoch()).count()) +
+                "}";
+            udpClient->sendMessage(json_message, "serial/receive");
+        }
         
         loop_count++;
         

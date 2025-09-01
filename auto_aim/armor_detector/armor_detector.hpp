@@ -2,7 +2,7 @@
  * @Author: laladuduqq 2807523947@qq.com
  * @Date: 2025-08-22 13:47:26
  * @LastEditors: laladuduqq 2807523947@qq.com
- * @LastEditTime: 2025-08-29 16:07:50
+ * @LastEditTime: 2025-08-31 13:20:48
  * @FilePath: /mas_vision_new/auto_aim/armor_detector/armor_detector.hpp
  * @Description: 
  */
@@ -29,9 +29,9 @@ class ArmorDetector
     /**
      * @brief 显示识别结果
      * @param bgr_img 输入图像
-     * @return void
+     * @return 包含结果图像的字典
      */
-    void showResult(const cv::Mat& bgr_img) const;
+    std::map<std::string, cv::Mat> showResult(const cv::Mat& bgr_img) const;
 
     private:
     //识别参数

@@ -5,6 +5,7 @@ add_library(auto_aim STATIC
     ${CMAKE_CURRENT_SOURCE_DIR}/armor_detector/armor_pose.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/armor_tracking/armor_track.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/armor_tracking/armor_target.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/thread/auto_aim_info/auto_aim_info.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/thread/auto_aim_thread.cpp
 )
 
@@ -19,6 +20,7 @@ target_include_directories(auto_aim PUBLIC
     ${EIGEN3_INCLUDE_DIR}
     ${CMAKE_CURRENT_SOURCE_DIR}/armor_detector
     ${CMAKE_CURRENT_SOURCE_DIR}/armor_tracking
+    ${CMAKE_CURRENT_SOURCE_DIR}/thread/auto_aim_info
     ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
